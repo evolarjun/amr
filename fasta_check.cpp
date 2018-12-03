@@ -69,7 +69,9 @@ struct ThisApplication : Application
     bool first = true;
     StringVector ids;  ids. reserve (100000);  // PAR
     size_t seqSize = 0;
-    LineInput f (fName);    
+    size_t allSize = 0;
+    LineInput f (fName); 
+    size_t nuc = 0;   
     while (f. nextLine ())
     {
       if (f. line. empty ())
@@ -101,6 +103,7 @@ struct ThisApplication : Application
     		if (first)
     			throw runtime_error (errorS + "FASTA should start with '>'");
     		seqSize += f. line. size ();
+    		allSize += f. line. size ();
     	  for (const char c : f. line)
     	  	if (c == '-')
     	  		if (hyphen)
@@ -108,14 +111,19 @@ struct ThisApplication : Application
     	  		else
 	    	  		throw runtime_error (errorS + "hyphen in the sequence");
 	    	  else
+	    	  {
+	    	  	const char c1 = toLower (c);
 	    	  	if (aa)
 	    	  	{
-		    	  	if (! charInSet (c, "acdefghiklmnpqrstvwyxbzjuoACDEFGHIKLMNPQRSTVWYXBZJUO*"))
+		    	  	if (! charInSet (c1, "acdefghiklmnpqrstvwyxbzjuoacdefghiklmnpqrstvwyxbzjuo*"))
 		    	  		throw runtime_error (errorS + "Wrong amino acid character: '" + c + "'");
+		    	    if (charInSet (c1, "acgt"))
+		    	    	nuc++;
 		    	  }
 	    	  	else
-		    	  	if (! charInSet (c, "acgtbdhkmnrsvwyACGTBDHKMNRSVWY"))
+		    	  	if (! charInSet (c1, "acgtbdhkmnrsvwyacgtbdhkmnrsvwy"))
 		    	  		throw runtime_error (errorS + "Wrong nucleotide character: '" + c + "'");
+		    	}
     	}
     	first = false;
 	  }
@@ -124,6 +132,8 @@ struct ThisApplication : Application
 	  	throw runtime_error ("Empty file");
 	  if (! first && seqSize == 0)
   		throw runtime_error ("Empty sequence");
+  	if (aa && (double) nuc / (double) allSize > 0.9)  // PAR
+  		throw runtime_error ("Protein sequence looks like a nucleotide sequence");
   		
 	  ids. sort ();
 	  const size_t index = ids. findDuplicate ();

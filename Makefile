@@ -7,9 +7,13 @@ ifeq ($(wildcard version.txt),)
 else
 	VERSION_STRING := $(shell cat version.txt)
 endif
-SVNREV := -D'SVN_REV="$(VERSION_STRING)"'
 
-SHELL=/bin/sh
+# Define default paths
+prefix = /panfs/pan1.be-md.ncbi.nlm.nih.gov/bacterial_pathogens/backup
+INSTALL_DIR = $(prefix)/packages/amrfinder
+bindir = $(prefix)/bin
+datadir=$(datarootdir)
+BLAST_BIN=$(BIN)
 INSTALL = install
 
 CPPFLAGS = -std=gnu++11 \
@@ -41,7 +45,7 @@ INSTALL_DIR=$(datadir)/amrfinder
 .PHONY: all clean install dist
 DISTFILES = Makefile *.cpp *.hpp *.inc test_* amrfinder.pl AMRFinder-dna.sh AMRFinder-prot.sh fasta_check gff_check amr_report
 
-all:	amr_report fasta_check gff_check
+all:	amr_report amrfinder fasta_check gff_check point_mut
 
 release: clean
 	svnversion . > version.txt
@@ -55,6 +59,12 @@ amr_reportOBJS=amr_report.o common.o gff.o
 amr_report:	$(amr_reportOBJS)
 	$(CXX) -o $@ $(amr_reportOBJS)
 
+
+amrfinder.o:  common.hpp common.inc
+amrfinderOBJS=amrfinder.o common.o
+amrfinder:	$(amrfinderOBJS)
+	$(CXX) -o $@ $(amrfinderOBJS) 
+
 fasta_check.o:	common.hpp common.inc
 fasta_checkOBJS=fasta_check.o common.o
 fasta_check:	$(fasta_checkOBJS)
@@ -65,19 +75,26 @@ gff_checkOBJS=gff_check.o common.o gff.o
 gff_check:	$(gff_checkOBJS)
 	$(CXX) -o $@ $(gff_checkOBJS)
 
+point_mut.o:	common.hpp common.inc 
+point_mutOBJS=point_mut.o common.o
+point_mut:	$(point_mutOBJS)
+	$(CXX) -o $@ $(point_mutOBJS)
+
+
 clean:
 	rm -f *.o
 	rm -f amr_report fasta_check gff_check
 	#rm version.txt
 
 install:
-	$(INSTALL) -D -t $(INSTALL_DIR) amr_report fasta_check gff_check amrfinder.pl
+	$(INSTALL) -D -t $(INSTALL_DIR) amr_report fasta_check gff_check amrfinder point_mut
 #	@dest=$(INSTALL_DIR); \
 #		if [ ! -e $(bindir)/amrfinder.pl ]; \
 #		then \
-#			ln -s "$$dest/amrfinder.pl" $(bindir); \
+#			ln -s "$$dest/amrfinder" $(bindir); \
 #			ln -s "$$dest/amr_report" $(bindir); \
 #			ln -s "$$dest/fasta_check" $(bindir); \
+#			ln -s "$$dest/point_mut"   $(bindir);
 #			ln -s "$$dest/gff_check" $(bindir); \
 #		else \
 #			echo "$$dest/amrfinder.pl already exists, so skipping link creation"; \
