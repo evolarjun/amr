@@ -24,6 +24,7 @@ See [AMRFinder 3.0b](AMRFinder-3.0b.md) for details
 AMRFinder requires BLAST and HMMER. We provide instructions using BioConda to install the prerequisites.
 
 [Installation Instructions](Installing-AMRFinder.md)
+
 [Compile AMRFinder from source](Compile-AMRFinder-from-source.md)
 
 ## Mechanism
