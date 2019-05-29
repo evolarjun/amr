@@ -1,4 +1,6 @@
-# New features
+# AMRFinder+ 3.0b
+
+## New features
 * Screen for select point mutations for antibiotic resistance from Salmonella, E. coli, and Campylobacter
     * Protein mutations in: 50S_L22 protein, acrB, acrR, basR, cmeR, cyaA, fabG, fabI, folP, gyrA, gyrB, lon, marR, murA, nfsA, ompF, parC, parE, pmrA, pmrB, ptsI, ramR, rpoB, rpsL, soxR, soxS, tufA, uhpA, uhpT
     * Nucleotide mutations in 16S and 23S rRNA
