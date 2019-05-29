@@ -1,4 +1,4 @@
-# NCBI Antimicrobial Resistance Gene Finder (AMRFinder+)
+# NCBI Antimicrobial Resistance Gene Finder+ (AMRFinder+)
 
 ## Overview
 
@@ -23,7 +23,8 @@ See [AMRFinder 3.0b](AMRFinder-3.0b.md) for details
 
 AMRFinder requires BLAST and HMMER. We provide instructions using BioConda to install the prerequisites.
 
-[[Installation Instructions|Installing AMRFinder]]
+[Installation Instructions](Installing-AMRFinder.md)
+[Compile AMRFinder from source](Compile-AMRFinder-from-source.md)
 
 ## Mechanism
 
@@ -40,4 +41,4 @@ it uses BLASTX translated searches and the hierarchical tree of gene families.
 
 Note that this version of AMRFinder is an alpha version. If you have any questions about or experience problems running AMRFinder, please contact pd-help@ncbi.nlm.nih.gov.
 
-[[Licenses]]
+[Licenses](Licenses.md)
