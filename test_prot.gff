@@ -6,4 +6,4 @@ contig2	.	gene	1	1191	.	+	.	ID=gene3;Name=blaPDC-114_blast
 contig3	.	gene	101	802	.	+	.	ID=gene4;Name=blaOXA-436_partial
 contig4	.	gene	101	1147	.	+	.	ID=gene5;Name=vanG
 contig6	.	gene	31	2616	.	+	.	ID=gene6;Name=gyrA
-contig7	.	gene	101	526		.	+	.	ID=gene7;Name=50S_L22
+contig7	.	gene	100	525		.	+	.	ID=gene7;Name=50S_L22

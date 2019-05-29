@@ -46,121 +46,34 @@ using namespace Common_sp;
 
 namespace 
 {
-	
-	
-	
-string shellQuote (string s)
-{
-	replaceStr (s, "\'", "\'\"\'\"\'");
-	return "\'" + s + "\'";
-}
-
-
-
-bool emptyArg (const string &s)
-{
-	return s. empty () || s == "\'\'";
-}
-
-
-
-struct Stderr : Singleton<Stderr>
-{
-  bool quiet {false};
   
-  explicit Stderr (bool quiet_arg)
-    : quiet (quiet_arg)
-    {}
-    
-  template <typename T>
-    Stderr& operator<< (const T& t) 
-      { if (quiet)
-          return *this;
-        cerr << t;
-        return *this;
-      }
-};
 
+// PAR
+constexpr size_t threads_max_min = 1;  // was: 4
+// Cf. amr_report.cpp
+constexpr double ident_min_def = 0.9;
+constexpr double partial_coverage_min_def = 0.5;
+  
 
-
-string tmp;
-
-
-
-string which (const string &progName)
-// Return: isRight(,"/") or empty()
-{
-	ASSERT (! tmp. empty ());
-	
-	try { exec ("which " + progName + " 1> " + tmp + ".src 2> /dev/null"); }
-	  catch (const runtime_error &)
-	    { return string (); }
-	LineInput li (tmp + ".src");
-	const string s (li. getString ());
-	return getDirName (s);
-}
-
-	
-
-string execDir;
-map<string,string> prog2dir;
-	
-	
-	
-void findProg (const string &progName)
-// Output: prog2dir
-{
-	ASSERT (! progName. empty ());
-	ASSERT (! contains (progName, '/'));
-	ASSERT (isRight (execDir, "/"));
-	
-	string dir;
-	if (! find (prog2dir, progName, dir))
-	{
-		dir = fileExists (execDir + progName)
-		        ? execDir
-		        : which (progName);
-	  if (dir. empty ())
-	  {
-	  	cout << "AMRFinder binary " << shellQuote (progName) << " is not found." << endl;
-		  cout << "Please make sure that " << shellQuote (progName) << " is in the same directory as " + shellQuote (Common_sp::programName) + " or is in your $PATH." << endl;
-	  	exit (1);
-	  }	
-	  prog2dir [progName] = dir;
-	}
-	  
-	ASSERT (isRight (dir, "/"));
-}
-
-
-
-string fullProg (const string &progName)
-// Requires: After findProg(progName)
-{
-	string dir;
-	EXEC_ASSERT (find (prog2dir, progName, dir));
-	ASSERT (isRight (dir, "/"));
-	return dir + progName + " ";
-}
-
-
-
+#define ORGANISMS "Campylobacter|Escherichia|Salmonella"
+  
+		
 
 // ThisApplication
 
-struct ThisApplication : Application
+struct ThisApplication : ShellApplication
 {
   ThisApplication ()
-    : Application ("Identify AMR genes in proteins and/or contigs and print a report", true, true)
+    : ShellApplication ("Identify AMR genes in proteins and/or contigs and print a report", true, true, true)
     {
     	addKey ("protein", "Protein FASTA file to search", "", 'p', "PROT_FASTA");
     	addKey ("nucleotide", "Nucleotide FASTA file to search", "", 'n', "NUC_FASTA");
-    	addKey ("database", "Alternative directory with AMRFinder database. Default: $AMRFINDER_DB ", "", 'd', "DATABASE_DIR");
-    //addKey ("fasta_prot", "Create FASTA file containing protein sequence for identified proteins", "", 'f', "FASTA_PROT_OUT");
+    	addKey ("database", "Alternative directory with AMRFinder database. Default: $AMRFINDER_DB", "", 'd', "DATABASE_DIR");
+    	addFlag ("update", "Update the AMRFinder database", 'u');  // PD-2379
     	addKey ("gff", "GFF file for protein locations. Protein id should be in the attribute 'Name=<id>' (9th field) of the rows with type 'CDS' or 'gene' (3rd field).", "", 'g', "GFF_FILE");
-    	addKey ("ident_min", "Minimum identity for nucleotide hit (0..1)", "0.9", 'i', "MIN_IDENT");
-    	addKey ("coverage_min", "Minimum coverage of the reference protein to report a match as complete (0..1)", "0.9", 'c', "MIN_COV");
-    	addKey ("organism", "Taxonomy group for point mutation assessment", "", 'O', "ORGANISM");
+    	addKey ("ident_min", "Minimum identity for nucleotide hit (0..1). -1 means use a curated threshold if it exists and " + toString (ident_min_def) + " otherwise", "-1", 'i', "MIN_IDENT");
+    	addKey ("coverage_min", "Minimum coverage of the reference protein (0..1)", toString (partial_coverage_min_def), 'c', "MIN_COV");
+      addKey ("organism", "Taxonomy group for point mutation assessment\n    " ORGANISMS, "", 'O', "ORGANISM");
     	addKey ("translation_table", "NCBI genetic code for translated blast", "11", 't', "TRANSLATION_TABLE");
     	addKey ("parm", "amr_report parameters for testing: -nosame -noblast -skip_hmm_check -bed", "", '\0', "PARM");
     	addKey ("point_mut_all", "File to report all target positions of reference point mutations", "", '\0', "POINT_MUT_ALL_FILE");
@@ -174,15 +87,45 @@ struct ThisApplication : Application
 	    setRequiredGroup ("protein",    "Input");
 	    setRequiredGroup ("nucleotide", "Input");
 	  #endif
+	    // threads_max: do not include blast/hmmsearch's threads ??
     }
 
 
 
-  void body () const final
+  void initEnvironment () final
+  {
+    ShellApplication::initEnvironment ();
+    var_cast (name2arg ["threads"] -> asKey ()) -> defaultValue = "4" /*toString (threads_max_min)*/;  
+  }
+  
+  
+  
+  bool blastThreadable (const string &blast,
+                        const string &logFName) const
+  {
+    try { exec (fullProg (blast) + " -help | grep '^ *\\-num_threads' > /dev/null 2> /dev/null", logFName); }
+      catch (const runtime_error &) 
+        { return false; }
+    return true;        
+  }
+  
+  
+  
+  size_t get_threads_max_max (const string &logFName) const
+  {
+    exec ("nproc --all > " + tmp + ".nproc", logFName);
+    LineInput f (tmp + ".nproc");
+	  return str2<size_t> (f. getString ());
+  }
+
+
+
+  void shellBody () const final
   {
     const string prot          = shellQuote (getArg ("protein"));
     const string dna           = shellQuote (getArg ("nucleotide"));
           string db            =             getArg ("database");
+    const bool   update        =             getFlag ("update");
     const string gff           = shellQuote (getArg ("gff"));
     const double ident         =             arg2double ("ident_min");
     const double cov           =             arg2double ("coverage_min");
@@ -195,77 +138,123 @@ struct ThisApplication : Application
     const bool   quiet         =             getFlag ("quiet");
     
     
+		const string logFName (tmp + ".log");
+
+
     Stderr stderr (quiet);
-    
     stderr << "Running "<< getCommandLine () << '\n';
-    
     const Verbose vrb (qc_on);
     
+    if (threads_max < threads_max_min)
+      throw runtime_error ("Number of threads cannot be less than " + toString (threads_max_min));
     
-    string mode;
-    StringVector includes;
-    if (emptyArg (prot))
-      if (emptyArg (dna))
-  		  throw runtime_error ("Parameter --prot or --nucleotide must be present");
-      else
-      {
-    		if (! emptyArg (gff))
-          throw runtime_error ("Parameter --gff is redundant");
-        mode = "translated nucleotide";
-      }
-    else
-    {
-      mode = "protein";
-      if (emptyArg (dna))
-      {
-        mode += "-only";
-        includes << key2shortHelp ("nucleotide") + " and " + key2shortHelp ("gff") + " options to add translated searches";
-      }
-      else
-      {
-    		if (emptyArg (gff))
-          throw runtime_error ("If parameters --prot and --nucleotide are present then parameter --gff must be present");
-        mode = "combined translated plus protein";
-      }
-    }
-    if (emptyArg (organism))
-      includes << key2shortHelp ("organism") + " option to add point-mutation searches";
-    else
-      mode += " and point-mutation";
-    
-    stderr << "AMRFinder " << mode << " search\n";
-    for (const string& include : includes)
-      stderr << "  - include " << include << '\n';
-
-
-		if (ident <= 0 || ident > 1)
+		if (ident != -1.0 && (ident < 0.0 || ident > 1.0))
 		  throw runtime_error ("ident_min must be between 0 and 1");
 		
-		if (cov <= 0 || cov > 1)
+		if (cov < 0.0 || cov > 1.0)
 		  throw runtime_error ("coverage_min must be between 0 and 1");
 		  
+
+		if (! emptyArg (output))
+		  try { OFStream f (unQuote (output)); }
+		    catch (...) { throw runtime_error ("Cannot open output file " + output); }
+
     
-    // tmp
-		tmp = tmpnam (NULL);
-		if (tmp. empty ())
-			throw runtime_error ("Cannot generate a temporary file");
-		if (qc_on)
-			cout << tmp << endl;  
-		
-    // execDir
-		execDir = getProgramDirName ();
-		if (execDir. empty ())
-			execDir = which (programName);
-		ASSERT (isRight (execDir, "/"));
-				
+    time_t start, end;  // For timing... 
+    start = time (NULL);
+    
+    
+    const size_t threads_max_max = get_threads_max_max (logFName);
+    if (threads_max > threads_max_max)
+      throw runtime_error ("Number of threads cannot be greater than " + toString (threads_max_max) + " on this computer");
+
+
+		const string defaultDb (execDir + "/data/latest");
+
 		// db
 		if (db. empty ())
 		{
     	if (const char* s = getenv ("AMRFINDER_DB"))
     		db = string (s);
     	else
-			  db = execDir + "data";
+			  db = defaultDb;
 		}
+		ASSERT (! db. empty ());		  
+
+
+		if (update)
+    {
+      // PD-2447
+      if (! emptyArg (prot) || ! emptyArg (dna))
+        throw runtime_error ("AMRFinder -u/--update option cannot be run with -n/--nucleotide or -p/--protein options");
+      if (! getArg ("database"). empty ())
+        throw runtime_error ("AMRFinder update option (-u/--update) only operates on the default database directory. The -d/--database option is not permitted");
+      if (getenv ("AMRFINDER_DB"))
+      {
+        cout << "WARNING: AMRFINDER_DB is set, but AMRFinder auto-update only downloads to the default database directory" << endl;
+        db = defaultDb;
+      }
+  		const Dir dbDir (db);
+      if (! dbDir. items. empty () && dbDir. items. back () == "latest")
+      {
+        findProg ("amrfinder_update");	
+  		  exec (fullProg ("amrfinder_update") + " -d " + dbDir. getParent () + ifS (quiet, " -q") + ifS (qc_on, " --debug") + " > " + logFName, logFName);
+      }
+      else
+        cout << "WARNING: Updating database directory works only for databases with the default data directory format." << endl
+             << "Please see https://github.com/ncbi/amr/wiki for details." << endl
+             << "Current database directory is: " << strQuote (dbDir. getParent ()) << endl
+             << "New database directories will be created as subdirectories of " << strQuote (dbDir. getParent ()) << endl;
+		}
+
+
+		if (! directoryExists (db))  // PD-2447
+		  throw runtime_error ("No valid AMRFinder database found. To download the latest version to the default directory run amrfinder -u");
+
+
+    string searchMode;
+    StringVector includes;
+    if (emptyArg (prot))
+      if (emptyArg (dna))
+      {
+        if (! update)
+  	  	  throw runtime_error ("Parameter --prot or --nucleotide must be present");
+  		}
+      else
+      {
+    		if (! emptyArg (gff))
+          throw runtime_error ("Parameter --gff is redundant");
+        searchMode = "translated nucleotide";
+      }
+    else
+    {
+      searchMode = "protein";
+      if (emptyArg (dna))
+      {
+        searchMode += "-only";
+        includes << key2shortHelp ("nucleotide") + " and " + key2shortHelp ("gff") + " options to add translated searches";
+      }
+      else
+      {
+    		if (emptyArg (gff))
+          throw runtime_error ("If parameters --prot and --nucleotide are present then parameter --gff must be present");
+        searchMode = "combined translated plus protein";
+      }
+    }
+    if (emptyArg (organism))
+      includes << key2shortHelp ("organism") + " option to add point-mutation searches";
+    else
+      searchMode += " and point-mutation";
+      
+      
+    if (searchMode. empty ())
+      return;
+
+
+    stderr << "AMRFinder " << searchMode << " search with database " << db << "\n";
+    for (const string& include : includes)
+      stderr << "  - include " << include << '\n';
+
 
     // blast_bin
     if (blast_bin. empty ())
@@ -280,129 +269,178 @@ struct ThisApplication : Application
 	    prog2dir ["blastn"] = blast_bin;
 	  }
 	  
+	  string organism1;
 	  if (! emptyArg (organism))
 	  {
-	  	string organism1 (getArg ("organism"));
+	  	organism1 = unQuote (organism);
  	  	replace (organism1, ' ', '_');
- 	  	bool found = true;
-			try { exec ("grep -w ^" + organism1 + " " + db + "/AMRProt-point_mut.tab &> /dev/null"); }
+ 	  }
+
+
+	  if (! emptyArg (organism))
+	  {
+ 	  	string errMsg;
+			try { exec ("grep -w ^" + organism1 + " " + db + "/AMRProt-point_mut.tab > /dev/null 2> /dev/null"); }
 			  catch (const runtime_error &)
 			  { 
-			  	cout << "No protein point mutations for organism " + organism << endl;
-			  	found = false;
+			  	errMsg = "No protein point mutations for organism " + organism;
 			  }
   		if (! emptyArg (dna))
   			if (! fileExists (db + "/AMR_DNA-" + organism1))
-  			{
-  	      cout << "No DNA point mutations for organism " + organism << endl;
-			  	found = false;
-  			}
-  		if (! found)
-  		{
-		  	cout << "Possible organisms:" << endl;
-		  	exec ("cut -f 1 " + db + "/AMRProt-point_mut.tab | sort | uniq | sed 's/_/ /g'");
- 				exit (1);
-  		}
+  	      errMsg = "No DNA point mutations for organism " + organism;
+  		if (! errMsg. empty ())
+  		  throw runtime_error (errMsg + "\nPossible organisms: " ORGANISMS);
 	  }
         
 
     const string qcS (qc_on ? "-qc  -verbose 1" : "");
     const string point_mut_allS (point_mut_all. empty () ? "" : ("-point_mut_all " + point_mut_all));
 		const string force_cds_report (! emptyArg (dna) && ! emptyArg (organism) ? "-force_cds_report" : "");  // Needed for point_mut
-			
-						  
+		
+								  
     findProg ("fasta_check");
+    findProg ("fasta2parts");
     findProg ("amr_report");	
     
     
     string blastp_par;	
-		if ( ! emptyArg (prot))
-		{
-			findProg ("blastp");
-			findProg ("hmmsearch");
+ 		string blastx_par;
+ 		bool blastxChunks = false;
+    {
+      Threads th (threads_max - 1, true);  
+      
+      double prot_share = 0.0;
+      double dna_share  = 0.0;
+  		if ( ! emptyArg (prot))
+  		  prot_share = 1.0;  // PAR
+  		if (! emptyArg (dna))
+  		  dna_share = 1.0;   // PAR
+  		const double total_share = prot_share + dna_share;
 
-		  exec (fullProg ("fasta_check") + prot + " -aa -hyphen");  
-			
-			string gff_match;
-			if (! emptyArg (gff) && ! contains (parm, "-bed"))
-			{
-			  string locus_tag;
-			  const int status = system (("grep '^>.*\\[locus_tag=' " + prot + " > /dev/null"). c_str ());
-			  if (status == 0)
-			  {
-			    locus_tag = "-locus_tag " + tmp + ".match";
-			    gff_match = "-gff_match " + tmp + ".match";
-			  }
-			  findProg ("gff_check");		
-			  string dnaPar;
-			  if (! emptyArg (dna))
-			    dnaPar = " -dna " + dna;
-			  exec (fullProg ("gff_check") + gff + " -prot " + prot + dnaPar + " " + locus_tag);
-			}
-			
-			if (! fileExists (db + "/AMRProt.phr"))
-			{
-				cout << "BLAST database " << shellQuote (db + "/AMRProt") << " does not exist" << endl;
-				exit (1);
-			}
-			
-			stderr << "Running blastp...\n";
-			exec (fullProg ("blastp") + " -task blastp-fast  -query " + prot + " -db " + db + "/AMRProt  -show_gis  -word_size 6  -threshold 21  -evalue 1e-20  -comp_based_stats 0  "
-			  "-num_threads 6  "
-			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' "
-			  "-out " + tmp + ".blastp &> /dev/null");
-			stderr << "Running hmmsearch...\n";
-			exec (fullProg ("hmmsearch") + " --tblout " + tmp + ".hmmsearch  --noali  --domtblout " + tmp + ".dom  --cut_tc  -Z 10000  --cpu 8  " + db + "/AMR.LIB " + prot + "&> " + tmp + ".out");
+  		if ( ! emptyArg (prot))
+  		{
+  			findProg ("blastp");  			
+  			findProg ("hmmsearch");
+  			
+  		  exec (fullProg ("fasta_check") + prot + " -aa -hyphen  -log " + logFName, logFName);  
+  			
+  			string gff_match;
+  			if (! emptyArg (gff) && ! contains (parm, "-bed"))
+  			{
+  			  string locus_tag;
+  			  const int status = system (("grep '^>.*\\[locus_tag=' " + prot + " > /dev/null"). c_str ());
+  			  if (status == 0)
+  			  {
+  			    locus_tag = "-locus_tag " + tmp + ".match";
+  			    gff_match = "-gff_match " + tmp + ".match";
+  			  }
+  			  findProg ("gff_check");		
+  			  string dnaPar;
+  			  if (! emptyArg (dna))
+  			    dnaPar = " -dna " + dna;
+  			  exec (fullProg ("gff_check") + gff + " -prot " + prot + dnaPar + " " + locus_tag + " -log " + logFName, logFName);
+  			}
+  			
+  			if (! fileExists (db + "/AMRProt.phr"))
+  				throw runtime_error ("BLAST database " + shellQuote (db + "/AMRProt") + " does not exist");
+  			
+  			const size_t prot_threads = (size_t) floor ((double) th. getAvailable () * (prot_share / total_share) / 2.0);
 
-		  blastp_par = "-blastp " + tmp + ".blastp  -hmmsearch " + tmp + ".hmmsearch  -hmmdom " + tmp + ".dom";
-			if (! emptyArg (gff))
-			  blastp_par += "  -gff " + gff + " " + gff_match;
-		}
-		
-		
-		string blastx_par;
-		if (! emptyArg (dna))
-		{
-			findProg ("blastx");
-		  exec (fullProg ("fasta_check") + dna + " -hyphen"); 
-			stderr << "Running blastx...\n";
-			exec (fullProg ("blastx") + "  -query " + dna + " -db " + db + "/AMRProt  "
-			  "-show_gis  -word_size 3  -evalue 1e-20  -query_gencode " + toString (gencode) + "  "
-			  "-seg no  -comp_based_stats 0  -max_target_seqs 10000  "
-			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' "
-			  "-out " + tmp + ".blastx &> /dev/null");
-		  blastx_par = "-blastx " + tmp + ".blastx  -ident_min " + getArg ("ident_min") + "  -complete_cover_min " + getArg ("coverage_min") + "  -pseudo";
-		}
+  			stderr << "Running blastp...\n";
+  			// " -task blastp-fast -word_size 6  -threshold 21 "  // PD-2303
+  			string num_threads;
+  			if (blastThreadable ("blastp", logFName) && prot_threads > 1)
+  			  num_threads = "-num_threads " + to_string (prot_threads);
+  			th. exec (fullProg ("blastp") + " -query " + prot + " -db " + db + "/AMRProt  -show_gis  -evalue 1e-20  -comp_based_stats 0  "
+  			  + num_threads + " "
+  			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' "
+  			  "-out " + tmp + ".blastp > /dev/null 2> /dev/null", prot_threads);
+  			  
+  			stderr << "Running hmmsearch...\n";
+  			string cpu;
+  			if (prot_threads > 1)
+  			  cpu = "--cpu " + to_string (prot_threads);
+  			th. exec (fullProg ("hmmsearch") + " --tblout " + tmp + ".hmmsearch  --noali  --domtblout " + tmp + ".dom  --cut_tc  -Z 10000  " + cpu + " " + db + "/AMR.LIB " + prot + " > /dev/null 2> /dev/null", prot_threads);
+
+  		  blastp_par = "-blastp " + tmp + ".blastp  -hmmsearch " + tmp + ".hmmsearch  -hmmdom " + tmp + ".dom";
+  			if (! emptyArg (gff))
+  			  blastp_par += "  -gff " + gff + " " + gff_match;
+  		}  		
+  		
+  		if (! emptyArg (dna))
+  		{
+  			stderr << "Running blastx...\n";
+  			findProg ("blastx");
+
+  		  exec (fullProg ("fasta_check") + dna + " -hyphen  -len "+ tmp + ".len  -log " + logFName, logFName); 
+  		  const size_t threadsAvailable = th. getAvailable ();
+  		//ASSERT (threadsAvailable);
+  		  if (threadsAvailable >= 2)
+  		  {
+    		  exec ("mkdir " + tmp + ".chunk");
+    		  exec (fullProg ("fasta2parts") + dna + " " + toString (threadsAvailable) + " " + tmp + ".chunk  -log " + logFName, logFName);   // PAR
+    		  exec ("mkdir " + tmp + ".blastx_dir");
+    		  FileItemGenerator fig (false, true, tmp + ".chunk");
+    		  string item;
+    		  while (fig. next (item))
+      			th << thread (exec, fullProg ("blastx") + "  -query " + tmp + ".chunk/" + item + " -db " + db + "/AMRProt  "
+      			  "-show_gis  -word_size 3  -evalue 1e-20  -query_gencode " + toString (gencode) + "  "
+      			  "-seg no  -comp_based_stats 0  -max_target_seqs 10000  "
+      			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' "
+      			  "-out " + tmp + ".blastx_dir/" + item + " > /dev/null 2> /dev/null", string ());
+    		  blastxChunks = true;
+  		  }
+  		  else
+    			th. exec (fullProg ("blastx") + "  -query " + dna + " -db " + db + "/AMRProt  "
+    			  "-show_gis  -word_size 3  -evalue 1e-20  -query_gencode " + toString (gencode) + "  "
+    			  "-seg no  -comp_based_stats 0  -max_target_seqs 10000  " 
+    			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' "
+    			  "-out " + tmp + ".blastx > /dev/null 2> /dev/null", threadsAvailable);
+  		  blastx_par = "-blastx " + tmp + ".blastx  -dna_len " + tmp + ".len";
+  		}
+
+  		if (! emptyArg (dna) && ! emptyArg (organism))
+  		{
+  			ASSERT (fileExists (db + "/AMR_DNA-" + organism1));
+  			findProg ("blastn");
+  			findProg ("point_mut");
+  			stderr << "Running blastn...\n";
+  			exec (fullProg ("blastn") + " -query " +dna + " -db " + db + "/AMR_DNA-" + organism1 + " -evalue 1e-20  -dust no  "
+  			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' -out " + tmp + ".blastn > /dev/null 2> /dev/null");
+  		}
+  	}
+  	
+  	
+  	if (blastxChunks)
+  	  exec ("cat " + tmp + ".blastx_dir/* > " + tmp + ".blastx");
 		
 
 		exec (fullProg ("amr_report") + " -fam " + db + "/fam.tab  " + blastp_par + "  " + blastx_par
 		  + "  -organism " + organism + "  -point_mut " + db + "/AMRProt-point_mut.tab " + point_mut_allS + " "
-		  + force_cds_report + " "
-		  + qcS + " " + parm + " > " + tmp + ".amr-raw");
+		  + force_cds_report + " -pseudo"
+		  + (ident == -1 ? string () : "  -ident_min "    + toString (ident)) 
+		  + "  -coverage_min " + toString (cov)
+		  + " " + qcS + " " + parm + " -log " + logFName + " > " + tmp + ".amr-raw", logFName);
 
-		
 		if (! emptyArg (dna) && ! emptyArg (organism))
 		{
-			string organism1 = getArg ("organism");
-			replace (organism1, ' ', '_');
 			ASSERT (fileExists (db + "/AMR_DNA-" + organism1));
-			findProg ("blastn");
-			findProg ("point_mut");
-			stderr << "Running blastn...\n";
-			exec (fullProg ("blastn") + " -query " +dna + " -db " + db + "/AMR_DNA-" + organism1 + " -evalue 1e-20  -dust no  "
-			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' -out " + tmp + ".blastn &> /dev/null");
-			exec (fullProg ("point_mut") + tmp + ".blastn " + db + "/AMR_DNA-" + organism1 + ".tab " + qcS + " > " + tmp + ".amr-snp");
+			exec (fullProg ("point_mut") + tmp + ".blastn " + db + "/AMR_DNA-" + organism1 + ".tab " + qcS + " -log " + logFName + " > " + tmp + ".amr-snp", logFName);
 			exec ("tail -n +2 " + tmp + ".amr-snp >> " + tmp + ".amr-raw");
 		}
 		
-		
 		// $tmp.amr-raw --> $tmp.amr
+    
+    // timing the run
+    end = time(NULL);
+    stderr << "AMRFinder took " << end - start << " seconds to complete\n";
+
     string sort_cols;
     if (   ! force_cds_report. empty ()
         || ! blastx_par. empty ()
         || ! emptyArg (gff)
        )
-      sort_cols = " -k2 -k3 -k4 -k5";
+      sort_cols = " -k2 -k3n -k4n -k5";
 		exec ("head -1 " + tmp + ".amr-raw > " + tmp + ".amr");
 		exec ("tail -n +2 " + tmp + ".amr-raw | sort" + sort_cols + " -k1 >> " + tmp + ".amr");
 
@@ -411,16 +449,13 @@ struct ThisApplication : Application
 		  exec ("cat " + tmp + ".amr");
 		else
 		  exec ("cp " + tmp + ".amr " + output);
-		
-		
-		if (! qc_on)
-		  exec ("rm -f " + tmp + "*");  
   }
 };
 
 
 
 }  // namespace
+
 
 
 

@@ -52,24 +52,28 @@ Locus::Locus (size_t lineNum_arg,
     				  size_t start_arg,
     				  size_t stop_arg,
     				  bool strand_arg,
+              bool partial_arg,
               size_t crossOriginSeqLen_arg)
 : lineNum (lineNum_arg)
 , contig (contig_arg)
 , start (start_arg)
 , stop (stop_arg)
 , strand (strand_arg)
-, crossOriginSeqLen (crossOriginSeqLen_arg)
+, partial (partial_arg)
+, contigLen (crossOriginSeqLen_arg)
+, crossOrigin (bool (crossOriginSeqLen_arg))
 { 
-  ASSERT (lineNum >= 1);
+//ASSERT (lineNum >= 1);
 	trim (contig, '_');
 	if (contig. empty ())
 		throw runtime_error ("Empty contig name");
-	if (crossOriginSeqLen)
+	if (crossOrigin)
 	{
 		swap (start, stop);
 		start--;
 		stop++;
-		ASSERT (stop <= crossOriginSeqLen);
+	  ASSERT (contigLen);
+		ASSERT (stop <= contigLen);
 	}
   ASSERT (start < stop); 
 }
@@ -82,19 +86,11 @@ bool Locus::operator< (const Locus& other) const
   LESS_PART (*this, other, start)
   LESS_PART (*this, other, stop)
   LESS_PART (*this, other, strand)
-  LESS_PART (*this, other, crossOriginSeqLen);
+  LESS_PART (*this, other, contigLen);
+  LESS_PART (*this, other, crossOrigin);
   return false;
 }
 
-
-
-size_t Locus::size () const
-{ 
-  if (crossOriginSeqLen)
-    return crossOriginSeqLen - stop + start;
-  return stop - start;
-}
-  
 
 
 
@@ -116,7 +112,8 @@ Annot::Annot (Gff,
        )
       continue;
 
-    replace (f. line, ' ', '_');  // to use '\t' as delimiter
+    constexpr char tmpSpace {'_'};
+    replace (f. line, ' ', tmpSpace);  // to use '\t' as delimiter
 
    	const string errorS ("File " + fName + ", line " + toString (f. lineNum) + ": ");
 
@@ -124,6 +121,15 @@ Annot::Annot (Gff,
     static Istringstream iss;
     iss. reset (f. line);
     iss >> contig >> source >> type >> startS >> stopS >> score >> strand >> phase >> attributes;
+    trim (contig, tmpSpace);
+    trim (source, tmpSpace);
+    trim (type, tmpSpace);
+    trim (startS, tmpSpace);
+    trim (stopS, tmpSpace);
+    trim (score, tmpSpace);
+    trim (strand, tmpSpace);
+    trim (phase, tmpSpace);
+    trim (attributes, tmpSpace);
 
     if (attributes. empty ())
     	throw runtime_error (errorS + "9 fields are expected in each line");
@@ -175,6 +181,8 @@ Annot::Annot (Gff,
                         || type == "pseudogene";
   //if (pseudo && type == "CDS")  
     //continue;
+    
+    const bool partial = contains (attributes, "partial=true");
 
     string locusTag;
     const string locusTagName (locus_tag || pseudo ? "locus_tag=" : "Name=");
@@ -194,10 +202,10 @@ Annot::Annot (Gff,
 	    findSplit (locusTag, '='); 
 	  trimPrefix (locusTag, "\"");
 	  trimSuffix (locusTag, "\"");
-	  trim (locusTag, '_');
+	  trim (locusTag, tmpSpace);
 	  ASSERT (! locusTag. empty ());
 	  
-	  const Locus locus (f. lineNum, contig, (size_t) start, (size_t) stop, strand == "+", 0);
+	  const Locus locus (f. lineNum, contig, (size_t) start, (size_t) stop, strand == "+", partial, 0);
 	#if 0
 	  // DNA may be truncated
     if (type == "CDS" && ! pseudo && locus. size () % 3 != 0)
@@ -258,7 +266,7 @@ Annot::Annot (Bed,
            
 	  trim (locusTag, '_');
 	  ASSERT (! locusTag. empty ());
-    prot2cdss [locusTag] << Locus (f. lineNum, contig, start, stop, strand == '+', 0);
+    prot2cdss [locusTag] << Locus (f. lineNum, contig, start, stop, strand == '+', false/*partial*/, 0);
   }
 }
   

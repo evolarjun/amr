@@ -114,8 +114,11 @@ struct PointMut
 	  // Depends on the above
 	string geneMutationGen;
 	  // geneMutation generalized, may have a different pos
+	string classS;
+	string subclass;
 	string name;
 	  // Species binomial + resistance
+	double neighborhoodMismatch {0.0};
 
 	
 	PointMut (const string &gene_arg,
@@ -123,12 +126,16 @@ struct PointMut
 						char alleleChar_arg,
 						const string &geneMutation_arg,
 						const string &geneMutationGen_arg,
+						const string &class_arg,
+						const string &subclass_arg,
 						const string &name_arg)
 		: gene (gene_arg)
 		, pos (pos_arg)
 		, alleleChar (alleleChar_arg)
 		, geneMutation (geneMutation_arg)
 		, geneMutationGen (geneMutationGen_arg)
+		, classS (class_arg)
+		, subclass (subclass_arg)
 		, name (name_arg)
 		{ 
 			ASSERT (! gene. empty ());
@@ -143,11 +150,8 @@ struct PointMut
       replace (name, '_', ' ');
       ASSERT (geneMutation. back () == alleleChar);
       ASSERT (geneMutationGen. back () == alleleChar);
-      ASSERT (geneMutation. front () != alleleChar);
-      ASSERT (geneMutationGen. front () != alleleChar);
 		}
-	PointMut ()
-	  {}
+	PointMut () = default;
 
 
   bool empty () const
@@ -158,6 +162,17 @@ struct PointMut
     	p = name. find (' ', p + 1);
     	ASSERT (p != string::npos);
     	return name. substr (p + 1);
+    }
+  bool better (const PointMut &other) const  
+    { if (geneMutationGen != other. geneMutationGen)
+        return false;
+    /*if (pos != other. pos)
+        return false; */
+      LESS_PART (*this, other, neighborhoodMismatch);
+      // Tie
+      LESS_PART (*this, other, name); 
+      LESS_PART (*this, other, geneMutation);  
+      return false;
     }
 };
 
@@ -243,34 +258,57 @@ struct BlastAlignment
 	    if (const vector<PointMut>* pointMuts_ = findPtr (accession2pointMuts, refName))
 	    {
 	    	if (verbose ())
-	        cout << "PointMut DNA found: " << refName << endl;
+	        cout << "PointMut DNA found: " << refName << endl 
+	             << targetStart << ' ' << targetEnd << ' ' << targetStrand << ' ' << targetSeq << endl 
+	             << refStart    << ' ' << refEnd    << ' ' << refStrand    << ' ' << refSeq << endl;
 	      ASSERT (! pointMuts_->empty ());
 	    	for (const PointMut& pm : *pointMuts_)
 	    	{
 	    		size_t pos = refStart;
 	    		// One pass for all *pointMuts_ ??
+	    		size_t targetPos = (targetStrand ? targetStart : (targetEnd - 1));
 	    		FFOR (size_t, i, refSeq. size ())
+	    		{
+	    		  if (targetSeq [i] != '-')
+	    		  {
+	    		    if (targetStrand)
+	    		      targetPos++;
+	    		    else
+	    		      targetPos--;
+	    		  }
 	    		  if (refSeq [i] != '-')
 		    	  {
-		    	  	if (verbose ())
-			    	  	if (targetSeq [i] != refSeq [i])  
-			    	  		cout << i + 1 << ' ' << refSeq [i]  << ' ' << targetSeq [i] << ' ' << pos + 1 << endl;
-		    	  	if (pos == pm. pos)
-		    	  	{
-				    		if (toUpper (targetSeq [i]) == pm. alleleChar)
-				    		{
-				    			ASSERT (targetSeq [i] != refSeq [i]);
-				    			if (goodNeighborhood (targetSeq, refSeq, i))
-				    			{
-				    			  const size_t targetPos = (targetStrand ? targetStart + i : (targetEnd - 1 - i));
-				    			  ASSERT (targetPos2pointMut [targetPos]. empty ());
-				    			  targetPos2pointMut [targetPos] = pm;
-				    			}
-				    		}
-		    	  		break;
-		    	  	}
+		    	    if (targetSeq [i] != '-')
+		    	    {
+  		    	    const double neighborhoodMismatch = getNeighborhoodMismatch (targetSeq, refSeq, i);
+  		    	  	if (verbose ())
+  			    	  	if (targetSeq [i] != refSeq [i])  
+  			    	  		cout        << i + 1 
+  			    	  		     << ' ' << refSeq [i]  
+  			    	  		     << ' ' << targetSeq [i] 
+  			    	  		     << ' ' << pos + 1 
+  			    	  		     << ' ' << pm. pos + 1
+  			    	  		     << ' ' << pm. alleleChar
+  			    	  		     << ' ' << neighborhoodMismatch
+  			    	  		     << endl;
+  		    	  	if (pos == pm. pos)
+  		    	  	{
+  				    		if (toUpper (targetSeq [i]) == pm. alleleChar)
+  				    		{
+  				    			ASSERT (targetSeq [i] != refSeq [i]);
+  				    			if (neighborhoodMismatch <= 0.03)   // PAR
+  				    			{
+  				    			  ASSERT (targetPos2pointMut [targetPos]. empty ());
+  				    			  targetPos2pointMut [targetPos] = pm;
+  				    			  targetPos2pointMut [targetPos]. neighborhoodMismatch = neighborhoodMismatch;
+  				    			}
+  				    		}
+  		    	  		break;
+  		    	  	}
+  		    	  }
 	    		  	pos++;
 		    		}
+		    	}
 	      }
 	    }
     }
@@ -293,13 +331,19 @@ struct BlastAlignment
         if (pm. empty ())
           continue;
         TabDel td (2, false);
-        td << targetName;
-        td << targetName 
+        td << na  // PD-2534
+           << targetName 
            << targetStart + 1
            << targetEnd
            << (targetStrand ? '+' : '-');
-        td << pm. geneMutation
+        td << pm. geneMutationGen  // was: pm.geneMutation
            << pm. name
+           // PD-1856
+           << "AMR"
+           << "POINT"
+           << nvl (pm. classS, na)
+           << nvl (pm. subclass, na)
+           //
            << "POINTN"  // PD-2088
            << targetLen;
         td << refLen
@@ -321,36 +365,56 @@ struct BlastAlignment
     { return (double) nident / (double) length; }
   double refCoverage () const
     { return (double) (refEnd - refStart) / (double) refLen; }
-  bool goodNeighborhood (const string &targetSeq, 
-                         const string &refSeq, 
-                         size_t i) const
+  double getNeighborhoodMismatch (const string &targetSeq, 
+                                  const string &refSeq, 
+                                  size_t i) const
     { ASSERT (targetSeq. size () == refSeq. size ());
     	ASSERT (i < targetSeq. size ())
-    	if (i == 0)
-    		return false;
+      ASSERT (targetSeq [i] != '-');
+      ASSERT (refSeq    [i] != '-');
+    	ASSERT (targetEnd - targetStart <= targetSeq. size ());
+    	ASSERT (refEnd - refStart <= refSeq. size ());
     	// PD-2001
-      size_t mismatches = 0;
-      size_t j = i - 1; 
-      while (i - j <= flankingLen)
-      { if (targetSeq [j] != refSeq [j])
-        	mismatches++;
-        if (j == 0)
-        	break;
-        j--;
+    	size_t len = 0;
+      size_t mismatches = 0; 
+      size_t j = 0;
+      // Left flank
+      if (i)
+      {
+        j = i - 1; 
+        while (i - j <= flankingLen)
+        { len++;
+          if (targetSeq [j] != refSeq [j])
+          	mismatches++;
+          if (j == 0)
+          	break;
+          j--;
+        }
       }
-      if (i - j != flankingLen + 1)
-      	return false;
+      ASSERT (i >= j);
+      const size_t left = min (min (targetStart, refStart), flankingLen + 1 - (i - j)); 
+      len        += left;
+      mismatches += left; 
+    //cout << i << ' ' << j << ' ' << left;  
+      // Right flank
       for (j = i + 1; j < targetSeq. size () && j < refSeq. size () && j - i <= flankingLen; j++)
+      { len++;
         if (targetSeq [j] != refSeq [j])
         	mismatches++;
-      if (j - i != flankingLen + 1)
-      	return false;
-      return (double) mismatches / (2.0 * flankingLen) <= 0.03;  // PAR
+      }
+      ASSERT (j >= i);
+      const size_t right = min (min (targetLen - targetEnd, refLen - refEnd), flankingLen + 1 - (j - i));
+      len        += right;
+      mismatches += right;     
+      //
+    //cout << ' ' << j << right << ' ' << mismatches << ' ' << len << endl;  
+      return (double) mismatches / (double) len;
     }
   bool good () const
     { return length >= 2 * flankingLen + 1; }
   bool operator< (const BlastAlignment &other) const
     { LESS_PART (*this, other, targetName);
+      LESS_PART (other, *this, pIdentity ());
       LESS_PART (*this, other, targetStart);
       LESS_PART (*this, other, refName);
       return false;
@@ -368,20 +432,16 @@ struct Batch
   explicit Batch (const string &point_mut)
 	  {
       LineInput f (point_mut);
+	  	string accession, gene, geneMutation, geneMutationGen, classS, subclass, name;
+			int pos;
+			char alleleChar;
  	  	Istringstream iss;
   	  while (f. nextLine ())
   	  {
-  	  	string accession;
-  	  	string gene;
-				int pos;
-				char alleleChar;
-				string geneMutation;
-				string geneMutationGen;
-				string name;
    	  	iss. reset (f. line);
-  	  	iss >> accession >> gene >> pos >> alleleChar >> geneMutation >> geneMutationGen >> name;
+  	  	iss >> accession >> gene >> pos >> alleleChar >> geneMutation >> geneMutationGen >> classS >> subclass >> name;
   	  	ASSERT (pos > 0);
- 	  		accession2pointMuts [accession]. push_back (PointMut (gene, (size_t) pos, alleleChar, geneMutation, geneMutationGen, name));
+ 	  		accession2pointMuts [accession]. push_back (move (PointMut (gene, (size_t) pos, alleleChar, geneMutation, geneMutationGen, classS, subclass, name)));
   	  }	    
 	  }
 	  	  
@@ -391,7 +451,7 @@ struct Batch
     {
     	// Cf. BlastAlignment::saveText()
 	    TabDel td;
-	    td << "Target identifier"   // targetName
+	    td << "Protein identifier"   // targetName  // PD-2534
          // Contig
          << "Contig id"
          << "Start"  // targetStart
@@ -399,6 +459,12 @@ struct Batch
          << "Strand"   // targetStrand
 	       << "Gene symbol"
 	       << "Mutation name"
+	       // PD-1856
+	       << "Element type"
+	       << "Element subtype"
+	       << "class"
+	       << "Subclass"
+	       //
 	       << "Method"
 	       << "Target length" 
 	       //
@@ -464,10 +530,10 @@ struct ThisApplication : Application
   	      if (verbose ())
   	        cout << f. line << endl;  
   	    }
-  	    const BlastAlignment al (f. line);
+  	    BlastAlignment al (f. line);
   	    al. qc ();  
   	    if (al. good ())
-  	      batch. blastAls. push_back (al);
+  	      batch. blastAls. push_back (move (al));
   	  }
   	}
   	if (verbose ())
@@ -476,7 +542,7 @@ struct ThisApplication : Application
     
     // Output
     // Group by targetName and process each targetName separately for speed ??    
-    Common_sp::sort (batch. blastAls);
+  //Common_sp::sort (batch. blastAls);
     if (verbose ())
     {
 	    cout << "After process():" << endl;
@@ -488,34 +554,39 @@ struct ThisApplication : Application
 		}
 		
     
-    FFOR (size_t, i, batch. blastAls. size ())
-    {
-      const BlastAlignment& blastAl1 = batch. blastAls [i];
+    for (const BlastAlignment& blastAl1 : batch. blastAls)
       for (const auto& it1 : blastAl1. targetPos2pointMut)
       {
         const PointMut& pm1 = it1. second;
-        FFOR_START (size_t, j, i + 1, batch. blastAls. size ())
-        {
-          BlastAlignment& blastAl2 = batch. blastAls [j];
-          if (blastAl2. targetName == blastAl1. targetName)  
+        if (pm1. empty ())
+          continue;
+        for (BlastAlignment& blastAl2 : batch. blastAls)
+          if (   blastAl2. targetName == blastAl1. targetName
+              && & blastAl2 != & blastAl1
+             )  
             for (auto& it2 : blastAl2. targetPos2pointMut)
             {
               PointMut& pm2 = it2. second;
+              if (pm2. empty ())
+                continue;
               if (verbose ())
                 cout        << blastAl2. targetName 
                      << ' ' << it1. first 
                      << ' ' << it2. first 
+                     << ' ' << pm1. geneMutation 
+                     << ' ' << pm2. geneMutation 
                      << ' ' << pm1. geneMutationGen 
                      << ' ' << pm2. geneMutationGen 
+                     << ' ' << pm1. neighborhoodMismatch 
+                     << ' ' << pm2. neighborhoodMismatch 
+                     << ' ' << pm1. better (pm2)
                      << endl; 
-              if (   it1. first == it2. first
-                  && pm1. geneMutationGen == pm2. geneMutationGen
+              if (   it2. first == it1. first
+                  && pm1. better (pm2)
                  )
                 pm2 = PointMut ();
             }
-        }
       }
-    }
 		
 		
     batch. report (cout);

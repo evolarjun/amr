@@ -1,3 +1,24 @@
+##############################################################################
+# PUBLIC DOMAIN NOTICE This software/database is "United States Government
+# Work" under the terms of the United States Copyright Act. It was written as
+# part of the authors' official duties for the United States Government and
+# thus cannot be copyrighted. This software/database is freely available to the
+# public for use without a copyright notice. Restrictions cannot be placed on
+# its present or future use.
+#
+# Although all reasonable efforts have been taken to ensure the accuracy and
+# reliability of the software and data, the National Center for Biotechnology
+# Information (NCBI) and the U.S. Government do not and cannot warrant the
+# performance or results that may be obtained by using this software or data.
+# NCBI, NLM, and the U.S. Government disclaim all warranties as to performance,
+# merchantability or fitness for any particular purpose.
+#
+# In any work or product derived from this material, proper attribution of the
+# authors as the source of the software or data should be made, using:
+# https://ncbi.nlm.nih.gov/pathogens/antimicrobial-resistance/AMRFinder/ as the
+# citation.
+###############################################################################
+
 # the SVNREV is set automatically here for convenience,
 # but when actually building we should override it like:
 # make all SVNREV=-D\'SVN_REV=\"$VERSION\"\' or use
@@ -7,45 +28,41 @@ ifeq ($(wildcard version.txt),)
 else
 	VERSION_STRING := $(shell cat version.txt)
 endif
+SVNREV := -D'SVN_REV="$(VERSION_STRING)"'
 
 # Define default paths
-prefix = /panfs/pan1.be-md.ncbi.nlm.nih.gov/bacterial_pathogens/backup
-INSTALL_DIR = $(prefix)/packages/amrfinder
+prefix=/usr/local
 bindir = $(prefix)/bin
-datadir=$(datarootdir)
+datadir=$(prefix)/share
 BLAST_BIN=$(BIN)
-INSTALL = install
+HMMER_BIN=$(BIN)
+INSTALL_DIR = $(datadir)/amrfinder
+INSTALL_PROGRAM=install
 
-CPPFLAGS = -std=gnu++11 \
+CPPFLAGS = -std=gnu++11 -pthread \
   -malign-double -fno-math-errno \
-  -Wall -Wextra \
+  -Waddress -Warray-bounds=1 -Wbool-compare -Wbool-operation -Wc++11-compat  -Wc++14-compat -Wchar-subscripts -Wcomment \
+  -Wformat -Wint-in-bool-context -Winit-self -Wlogical-not-parentheses -Wmaybe-uninitialized -Wmemset-elt-size -Wmemset-transposed-args \
+  -Wnarrowing -Wnonnull -Wnonnull-compare -Wopenmp-simd -Wparentheses  -Wreorder -Wreturn-type \
+  -Wsequence-point -Wsign-compare -Wsizeof-pointer-memaccess -Wstrict-aliasing -Wstrict-overflow=1 -Wswitch -Wtautological-compare \
+  -Wtrigraphs -Wuninitialized -Wunknown-pragmas -Wunused-function -Wunused-label -Wunused-value -Wunused-variable -Wvolatile-register-var \
+  -Wextra \
   -Wcast-align -Wconversion -Wdeprecated-declarations -Wformat -Winit-self -Wlogical-op \
   -Wmissing-braces -Wmissing-field-initializers -Wmissing-format-attribute -Wmissing-include-dirs \
   -Woverloaded-virtual -pedantic -Wparentheses -Wpointer-arith -Wsequence-point -Wshadow -Wunused \
   -Wsuggest-attribute=format -Wswitch -Wuninitialized -Wsign-conversion -Wuseless-cast \
-  -O3 \
+  -Werror -O3 \
   $(SVNREV)
-#  -Wno-error=misleading-indentation -Wno-nonnull-compare \
 
 CXX=g++
-COMPILE.cpp= $(CXX) $(CPPFLAGS)  -c
-
-#prefix = /panfs/pan1.be-md.ncbi.nlm.nih.gov/bacterial_pathogens/backup
-prefix=/usr/local
-
-# soft links are created here to INSTALL_DIR
-bindir="$(prefix)/bin"
-
-datadir=$(prefix)/share
-
-# This is where AMRFinder and the default database will be installed
-INSTALL_DIR=$(datadir)/amrfinder
+COMPILE.cpp= $(CXX) $(CPPFLAGS)  -c 
 
 
-.PHONY: all clean install dist
-DISTFILES = Makefile *.cpp *.hpp *.inc test_* amrfinder.pl AMRFinder-dna.sh AMRFinder-prot.sh fasta_check gff_check amr_report
+.PHONY: all clean install release
 
-all:	amr_report amrfinder fasta_check gff_check point_mut
+BINARIES= amr_report amrfinder amrfinder_update fasta_check fasta2parts gff_check point_mut 
+
+all:	$(BINARIES)
 
 release: clean
 	svnversion . > version.txt
@@ -59,16 +76,25 @@ amr_reportOBJS=amr_report.o common.o gff.o
 amr_report:	$(amr_reportOBJS)
 	$(CXX) -o $@ $(amr_reportOBJS)
 
-
 amrfinder.o:  common.hpp common.inc
 amrfinderOBJS=amrfinder.o common.o
 amrfinder:	$(amrfinderOBJS)
-	$(CXX) -o $@ $(amrfinderOBJS) 
+	$(CXX) -o $@ $(amrfinderOBJS) -pthread 
 
-fasta_check.o:	common.hpp common.inc
-fasta_checkOBJS=fasta_check.o common.o
+amrfinder_update.o:  common.hpp common.inc
+amrfinder_updateOBJS=amrfinder_update.o common.o
+amrfinder_update:      $(amrfinder_updateOBJS)
+	$(CXX) -o $@ $(amrfinder_updateOBJS) -lcurl
+
+fasta_check.o:	common.hpp common.inc 
+fasta_checkOBJS=fasta_check.o common.o 
 fasta_check:	$(fasta_checkOBJS)
 	$(CXX) -o $@ $(fasta_checkOBJS)
+
+fasta2parts.o:	common.hpp common.inc
+fasta2partsOBJS=fasta2parts.o common.o
+fasta2parts:	$(fasta2partsOBJS)
+	$(CXX) -o $@ $(fasta2partsOBJS)
 
 gff_check.o:	common.hpp common.inc gff.hpp
 gff_checkOBJS=gff_check.o common.o gff.o
@@ -83,24 +109,30 @@ point_mut:	$(point_mutOBJS)
 
 clean:
 	rm -f *.o
-	rm -f amr_report fasta_check gff_check
-	#rm version.txt
+	rm -f $(BINARIES)
 
 install:
-	$(INSTALL) -D -t $(INSTALL_DIR) amr_report fasta_check gff_check amrfinder point_mut
-#	@dest=$(INSTALL_DIR); \
-#		if [ ! -e $(bindir)/amrfinder.pl ]; \
-#		then \
-#			ln -s "$$dest/amrfinder" $(bindir); \
-#			ln -s "$$dest/amr_report" $(bindir); \
-#			ln -s "$$dest/fasta_check" $(bindir); \
-#			ln -s "$$dest/point_mut"   $(bindir);
-#			ln -s "$$dest/gff_check" $(bindir); \
-#		else \
-#			echo "$$dest/amrfinder.pl already exists, so skipping link creation"; \
-#		fi
+	$(INSTALL_PROGRAM) --target-directory=$(INSTALL_DIR) $(BINARIES)
 
-DISTDIR=amrfinder.$(VERSION_STRING)
+# amrfinder binaries for github binary release
+GITHUB_FILE=amrfinder_binaries_v$(VERSION_STRING)
+GITHUB_FILES = test_* $(BINARIES)
+github_binaries:
+	@if [ ! -e version.txt ]; \
+	then \
+		echo >&2 "version.txt required to make a distribution file"; \
+		false; \
+	fi
+	mkdir $(GITHUB_FILE)
+	echo $(VERSION_STRING) > $(GITHUB_FILE)/version.txt
+	cp $(GITHUB_FILES) $(GITHUB_FILE)
+	if [ -e $(GITHUB_FILE).tar.gz ]; then rm $(GITHUB_FILE).tar.gz; fi
+	cd $(GITHUB_FILE); tar cvfz ../$(GITHUB_FILE).tar.gz *
+#	tar cvfz $(GITHUB_FILE).tar.gz $(GITHUB_FILE)/*
+	rm -r $(GITHUB_FILE)/*
+	rmdir $(GITHUB_FILE)
+
+DISTFILES=$(GITHUB_FILES) Makefile *.cpp *.hpp *.inc
 dist:
 	@if [ ! -e version.txt ]; \
 	then \
@@ -120,23 +152,4 @@ dist:
 	tar cvfz $(DISTDIR).tar.gz $(DISTDIR)/*
 	rm -r $(DISTDIR)/*
 	rmdir $(DISTDIR)
-
-# amrfinder binaries for github binary release
-GITHUB_FILE=amrfinder_binaries_v$(VERSION_STRING)
-GITHUB_FILES = test_* amrfinder.pl fasta_check gff_check amr_report
-github_binaries:
-	@if [ ! -e version.txt ]; \
-	then \
-		echo >&2 "version.txt required to make a distribution file"; \
-		false; \
-	fi
-	mkdir $(GITHUB_FILE)
-	echo $(VERSION_STRING) > $(GITHUB_FILE)/version.txt
-	cp $(GITHUB_FILES) $(GITHUB_FILE)
-	sed "s/curr_version = .*/curr_version = '$(VERSION_STRING)';/" amrfinder.pl > $(GITHUB_FILE)/amrfinder.pl
-	if [ -e $(GITHUB_FILE).tar.gz ]; then rm $(GITHUB_FILE).tar.gz; fi
-	cd $(GITHUB_FILE); tar cvfz ../$(GITHUB_FILE).tar.gz *
-#	tar cvfz $(GITHUB_FILE).tar.gz $(GITHUB_FILE)/*
-	rm -r $(GITHUB_FILE)/*
-	rmdir $(GITHUB_FILE)
 

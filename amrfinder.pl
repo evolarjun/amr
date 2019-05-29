@@ -1,4 +1,24 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl 
+#
+# PUBLIC DOMAIN NOTICE This software/database is "United States Government
+# Work" under the terms of the United States Copyright Act. It was written as
+# part of the authors' official duties for the United States Government and
+# thus cannot be copyrighted. This software/database is freely available to the
+# public for use without a copyright notice. Restrictions cannot be placed on
+# its present or future use.
+# 
+# Although all reasonable efforts have been taken to ensure the accuracy and
+# reliability of the software and data, the National Center for Biotechnology
+# Information (NCBI) and the U.S. Government do not and cannot warrant the
+# performance or results that may be obtained by using this software or data.
+# NCBI, NLM, and the U.S. Government disclaim all warranties as to performance,
+# merchantability or fitness for any particular purpose.
+# 
+# In any work or product derived from this material, proper attribution of the
+# authors as the source of the software or data should be made, using:
+# https://ncbi.nlm.nih.gov/pathogens/antimicrobial-resistance/AMRFinder/ as the
+# citation.
+# 
 use strict;
 use warnings;
 #use diagnostics;
@@ -7,7 +27,7 @@ use File::Temp qw( tempdir );
 use File::Basename;
 use Net::FTP;
 use Cwd qw( getcwd abs_path );
-my $curr_version = '$Revision: 38801 $';
+my $curr_version = '$Revision: 39138 $';
 our $DEBUG = 0;
 
 # todo:
@@ -58,7 +78,7 @@ amrfinder [-options] -n <genomic sequence FASTA>
     -U/--update_data update AMRFinder database by downloading latest version
         from the NCBI ftp site
 Options used for either of the operating modes:
-    -d/--custom_directory <dir> Directory containing the AMR database
+    -d/--database <dir> Directory containing the AMR database
     -o/--output <file.tsv> tabfile output to this file instead of STDOUT
     -q/--quiet don't print status messages to STDERR
 Options relating to protein input (-p):
@@ -109,7 +129,7 @@ my $NUM_THREADS     = 4; # parameter to -num_threads or --cpu
 GetOptions(
     'protein=s'             => \$prot_file,
     'nucleotide=s'          => \$nuc_file,
-    'd|custom_database=s'   => \$database_dir,
+    'database=s'            => \$database_dir,
     'output=s'              => \$outfile,
     'fasta_out=s'           => \$out_fa,
     'gff=s'                 => \$gff,
@@ -120,7 +140,7 @@ GetOptions(
     'quiet'                 => \$quiet,
     'help|?'                => \$help,
     'version'               => \$version,
-    'D'                     => \$DEBUG,
+    #    'D'                     => \$DEBUG,
 );
 
 print $usage_long and exit() if ($help);
