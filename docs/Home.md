@@ -7,7 +7,7 @@ antimicrobial resistance genes in protein or nucleotide sequences.
 
 ### New in version 3.0b   *beta*
 
-See [[AMRFinder 3.0]] for details
+See [AMRFinder 3.0b](AMRFinder-3.0b.md) for details
 
 - Screening for point mutations in Salmonella, E. coli and Camplyobacter added
 - New "plus" genes of interest requested by our collaborators
