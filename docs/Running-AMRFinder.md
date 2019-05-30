@@ -116,11 +116,9 @@ on the options `-p`, `-n`, and `-g`. Protein searches with gff files (`-p
 <file.fa> -g <file.gff>` and translated dna searches (`-n <file.fa>`) will  
 include the `Contig id`, `start`, and `stop` columns. 
 
-A sample AMRFinder report:
-=======
-For example:
+### Sample AMRFinder report:
 
-`amrfinder -p `[`test_prot.fa`](https://raw.githubusercontent.com/ncbi/amr/master/test_prot.fa)` -g `[`test_prot.gff`](https://raw.githubusercontent.com/ncbi/amr/master/test_prot.gff) 
+`amrfinder -p `[`test_prot.fa`](https://raw.githubusercontent.com/ncbi/amr/master/test_prot.fa)` -g `[`test_prot.gff`](https://raw.githubusercontent.com/ncbi/amr/master/test_prot.gff)` -n `[`test_dna.fa`](https://raw.githubusercontent.com/ncbi/amr/master/test_dna.fa)
 
 Should
 result in the sample output shown below and in [`test_prot.expected`](https://raw.githubusercontent.com/ncbi/amr/master/test_prot.expected).
@@ -146,20 +144,22 @@ Fields:
 - Element subtype - Further elaboration of functional category into (ANTIGEN, BIOCIDE, HEAT, METAL, PORIN) if more specific category is available, otherwise he element is repeated.
 - Class - For AMR genes this is the class of drugs that this gene is known to contribute to resistance of. 
 - Subclass - If more specificity about drugs within the drug class is known it is elaborated here. 
-- Method - Type of hit found by AMRFinder. A suffix of 'P' or 'X' is appended to "Methods" that could be found by protein or nucleotide to show which was used.
+- Method - Type of hit found by AMRFinder. A suffix of 'P' or 'X' is appended to "Methods" that could be found by protein or nucleotide.
   - ALLELE - 100% sequence match over 100% of length to a protein named at the allele level in the AMRFinder database.
   - EXACT - 100% sequence match over 100% of length to a protein in the database that is not a named allele.
   - BLAST - BLAST alignment is > 90% of length and > 90% identity to a protein in the AMRFinder database.
-  - PARTIAL - BLAST alignment is > 50% of length, but < 90% of length and > 90% identity.
-  - HMM - HMM was hit above the cutoff, but there was not a BLAST hit that met standards for BLAST or PARTIAL.
+  - PARTIAL - BLAST alignment is > 50% of length, but < 90% of length and > 90% identity to the reference, and does not end at a contig boundary.
+  - PARTIAL_CONTIG_END - BLAST alignment is > 50% of length, but < 90% of length and > 90% identity to the reference, and the break occurrs at a contig boundary indicating that this gene is more likely to have been split by an assembly issue.
+  - HMM - HMM was hit above the cutoff, but there was not a BLAST hit that met standards for BLAST or PARTIAL. This does not have a suffix because only protein sequences are searched by HMM. 
   - INTERNAL_STOP - Translated blast reveals a stop codon that occurred before the end of the protein. This can only be assessed if the `-n <nucleotide_fasta>` option is used.
+  - POINT - Point mutation identified by blast.  
 - Target length - The length of the query protein or gene. The length will be in amino-acids if the reference sequence is a protein, but nucleotide if the reference sequence is nucleotide.
 - Reference sequence length - The length of the Reference protein or nucleotide in the database (NA if HMM-only hit).
 - % Coverage of reference sequence - % of reference covered by blast hit (NA if HMM-only hit).
 - % Identity to reference sequence - % amino-acid identity to reference protein or nucleotide identity for nucleotide reference. (NA if HMM-only hit).
 - Alignment length - Length of BLAST alignment in amino-acids or nucleotides if nucleotide reference (NA if HMM-only hit).
 - Accession of closest protein - RefSeq accession for reference hit by BLAST. Note that only one reference will be chosen if the blast hit is equidistant from multiple references (NA if HMM-only hit).
-- Name of closest protein - Full name assigned to the closest reference hit (NA if HMM-only hit)
+- Name of closest protein - Full name assigned to the closest reference hit (NA if HMM-only hit).
 - HMM id - Accession for the HMM, NA if none.
 - HMM description - The family name associated with the HMM, NA if none.
 
