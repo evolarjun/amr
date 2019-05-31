@@ -1,6 +1,6 @@
 See [testing your installation](Installing-AMRFinder.md#testing-your-installation) for some basic examples and expected output.
 
-## Usage:
+# Usage:
 
 `amrfinder (-p <protein_fasta> | -n <nucleotide_fasta) [options]`
 
@@ -79,6 +79,29 @@ hmmer) if not in the path.
 `--parm <parameter string>` Pass additional parameters to amr_report. This is mostly used for internal purposes.
 
 `--debug` Perform some additional integrity checks. May be useful for debugging, but not intended for public use.
+
+## Examples
+
+    # print a list of command-line options
+    amrfinder --help
+    
+    # Download the latest AMRFinder plus database
+    amrfinder -u
+    
+    # Protein AMRFinder with no genomic coordinates
+    amrfinder -p test_prot.fa
+    
+    # Translated nucleotide AMRFinder (will not use HMMs)
+    amrfinder -n test_dna.fa
+    
+    # Protein AMRFinder using GFF to get genomic coordinates
+    amrfinder -p test_prot.fa -g test_prot.gff
+    
+    # Protein AMRFinder with Campylobacter protein point mutations
+    amrfinder -p test_prot.fa -O Campylobacter
+    
+    # Full AMRFinder+ search combining results
+    amrfinder -p test_prot.fa -g test_prot.gff -n test_dna.fa -O campylobacter
 
 
 ## Input file formats
