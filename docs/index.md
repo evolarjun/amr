@@ -34,7 +34,8 @@ to search protein sequences for AMR genes along with a hierarchical tree of
 gene families to classify and name novel sequences. With nucleotide sequences
 it uses BLASTX translated searches and the hierarchical tree of gene families.
 
-[Running AMRFinder](Running-AMRFinder.md)
+[Running AMRFinder](Running-AMRFinder.md)<br>
+[AMRFinder database](AMRFinder-database.md)<br>
 [[Methods]]
 
 ## Help

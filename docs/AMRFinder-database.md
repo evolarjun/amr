@@ -213,9 +213,9 @@ multiple sequence alignment, called the seed alignment. Regions of sequence
 that appeared extraneous, as from incorrect prediction of an upstream start
 site, were removed by trimming. Sequences that appeared non-representative,
 such as those with frameshift mutations or truncations, were removed.
-Models were built using the HMMER3 package (http://hmmer.org;
-PMID:22039361). For some HMMs, the seed alignment may consist of a single
-sequence.
+Models were built using the HMMER3 package (http://hmmer.org; [Eddy,
+2011](https://www.ncbi.nlm.nih.gov/pubmed/22039361)). For some
+HMMs, the seed alignment may consist of a single sequence.
 
 Three types of cutoffs are provided, for compatibility: trusted_cutoff (TC),
 gathering threshold (GA), and noise_cutoff (NC).  In this library, TC and
@@ -225,9 +225,9 @@ Because all three types of cutoff are provided, searches may be performed
 using any of the HMMER package switches, `--cut_tc`, `--cut_ga`, or `--cut_nc`.
 AMRFinder uses `--cut_tc`.
 
-## Sources of "plus" proteins
+## "Plus" proteins
 
-At the request of our collaborators we have imported an expanded set of genes
+At the request of our collaborators we have added an expanded set of genes
 that are of interest in pathogens. This set includes Stress response, Biocide
 resistance, Virulence factors, and porins. These "plus" proteins have been
 added with curated percent identites, and are generally identified by blast
