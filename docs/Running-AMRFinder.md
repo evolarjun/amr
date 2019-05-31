@@ -111,8 +111,7 @@ a simple example.
 ## Output format
 
 AMRFinder output is in tab-delimited format (.tsv). The output format depends
-on the options `-p`, `-n`, and `-g`. Protein searches with gff files (`-p
-<file.fa> -g <file.gff>` and translated dna searches (`-n <file.fa>`) will  
+on the options `-p`, `-n`, and `-g`. Protein searches with gff files (`-p <file.fa> -g <file.gff>` and translated dna searches (`-n <file.fa>`) will  
 include the `Contig id`, `start`, and `stop` columns. 
 
 ### Sample AMRFinder report:
