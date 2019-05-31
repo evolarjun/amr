@@ -101,7 +101,7 @@ hmmer) if not in the path.
     amrfinder -p test_prot.fa -O Campylobacter
     
     # Full AMRFinder+ search combining results
-    amrfinder -p test_prot.fa -g test_prot.gff -n test_dna.fa -O campylobacter
+    amrfinder -p test_prot.fa -g test_prot.gff -n test_dna.fa -O Campylobacter
 
 
 ## Input file formats
