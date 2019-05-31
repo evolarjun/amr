@@ -23,8 +23,7 @@ See [AMRFinder 3.0b](AMRFinder-3.0b.md) for details
 
 AMRFinder requires BLAST and HMMER. We provide instructions using BioConda to install the prerequisites.
 
-[Installation Instructions](Installing-AMRFinder.md)
-
+[Installation Instructions](Installing-AMRFinder.md)<BR>
 [Compile AMRFinder from source](Compile-AMRFinder-from-source.md)
 
 ## Mechanism
@@ -35,8 +34,8 @@ to search protein sequences for AMR genes along with a hierarchical tree of
 gene families to classify and name novel sequences. With nucleotide sequences
 it uses BLASTX translated searches and the hierarchical tree of gene families.
 
-[[Running AMRFinder]]  
-[[Methods]]  
+[Running AMRFinder](Running-AMRFinder.md)
+[[Methods]]
 
 ## Help
 
