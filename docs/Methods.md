@@ -47,6 +47,19 @@ assembly.
 
 ## Point mutation identification
 
+Point mutations are identified by blast alignments that must cover at least 50%
+of the reference (or `--coverage_min` if set) at 90% identity (or `--ident_min`
+if set). Offsets are calculated relative to the beginning of the reference and
+reported in that coordinate system. That is if there are indels within the
+query sequence the coordinates of the point mutation will reflect the offset
+from the start codon in the reference rather than in the query sequence.
+
 ## Combining translated nucleotide and protein hits
+
+When provided with nucleotide, protein, and coordinate information AMRFinder will attempt to remove hits that overlap by > 75%
+
+Protein hits generally take priority over nucleotide hits, except if the protein hit is of lower "quality" than the nucleotide hit where quality is measured by the hit "Method". 
+
+ALLELE > EXACT > BLAST > INTERNAL_STOP > PARTIAL_CONTIG_END > PARTIAL > HMM
 
 
