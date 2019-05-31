@@ -6,8 +6,7 @@ See [testing your installation](Installing-AMRFinder.md#testing-your-installatio
 
 ### Typical options
 
-The only required arguments are either `-p <protein_fasta>` for proteins or `-n
-<nucleotide_fasta>` for nucleotides. We also provide an automatic update
+The only required arguments are either `-p <protein_fasta>` for proteins or `-n <nucleotide_fasta>` for nucleotides. We also provide an automatic update
 mechanism to update the code and database by using `-u`. This will update to
 the latest AMR database, as well as any code changes in AMRFinder. Use '--help'
 to see the complete set of options and flags.
@@ -112,8 +111,7 @@ a simple example.
 ## Output format
 
 AMRFinder output is in tab-delimited format (.tsv). The output format depends
-on the options `-p`, `-n`, and `-g`. Protein searches with gff files (`-p
-<file.fa> -g <file.gff>` and translated dna searches (`-n <file.fa>`) will  
+on the options `-p`, `-n`, and `-g`. Protein searches with gff files (`-p <file.fa> -g <file.gff>` and translated dna searches (`-n <file.fa>`) will  
 include the `Contig id`, `start`, and `stop` columns. 
 
 ### Sample AMRFinder report:
