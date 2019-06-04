@@ -82,7 +82,7 @@ FASTA formatted file containing curated AMR Protein sequences along with thename
 
 Fields in the defline are separated by '|' characters and are as follows:
 1. Protein GI
-2. RefSeq protein accession
+2. Protein accession
 3. Fusion gene part number, 1 if not a fusion gene
 4. Total number of fusion parts, 1 if not a fusion gene
 5. Internal family identifier - see fam.tab
@@ -130,7 +130,8 @@ any) that is used at this level in the heirarchy.
 9. **Blast rule cutoff**
 10. **Blast rule cutoff**
 11. **Blast rule cutoff**
-12. **Reportable 0/1** - Whether a hit at this level will be reported as an AMRFinder hit
+12. **Blast rule cutoff**
+12. **Reportable 0/1/2** - Whether a hit at this level will be reported as an AMRFinder hit (0 = non-reportable, 1 = reportable 'plus' gene/family, 2 = AMRFinder core gene/family
 13. **Family name** - The gene name to be reported for hits at this level
 
 # Methods
@@ -153,7 +154,7 @@ Sources, published or collaborative, include
 *    "Oxford" - Derrick Crook personal communications
 
 In addition, NCBI continually mines the literature for new reports of AMR
-proteins.  The ResFams collection of AMR HMMs aided provided important help
+proteins.  The ResFams collection of AMR HMMs provided important help
 early in our efforts to develop the AMR protein hierarchy and the AMRFinder
 tool, but all models were rebuilt with new seed alignment sequences, new
 alignments, new cutoff scores, and new biocuration. Development continued until
@@ -182,13 +183,12 @@ mutational events increase their expression. We avoided including such proteins
 in the release, for now, since flagging such proteins makes the reports on AMR
 proteins identified far more difficult to read and understand.
 
-At present, we provide no analysis of adaptive resistance, in which mutational
+At present, AMRFinder provides analysis of adaptive resistance, in which mutational
 processes rather than gene acquisition or intrinsic function are responsible of
-the resistance that may be observed. Thus, the files provided will not help
-much in finding sources of resistance in Mycobacterium tuberculosis, where
+the resistance that may be observed for only a few taxonomic groups. Thus, the files provided will not help
+much in finding sources of resistance in _Mycobacterium tuberculosis_, where
 nearly all the recent increase in antimicrobial resistance is attributable to
-mutational changes. We expect analysis of adaptive resistance to become
-a feature in future versions of AMRFinder.
+mutational changes. We expect to increase coverage of point-mutations in the future.
 
 As we collected AMR proteins from various sources, we examined them in multiple
 sequence alignments to determine whether we judged any to have structural
