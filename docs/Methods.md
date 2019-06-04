@@ -9,7 +9,7 @@ The AMRFinder database is generated at NCBI and curation is ongoing. Recent vers
 ## Protein searches (-p)
 
 AMRFinder-prot uses the database of AMR gene sequences, protein profile hidden Markov models
-(HMMs), the hierarchical tree of AMR protein designations, and a custom
+(HMMs), the hierarchical tree of AMR protein families, and a custom
 rule-set to generate names and coordinates for AMR genes, along with
 descriptions of the evidence used to identify the sequence. Genes are reported
 with the following procedure after both HMMER and BLASTP searches are run.
@@ -63,6 +63,6 @@ When provided with nucleotide, protein, and coordinate information AMRFinder wil
 
 Protein hits generally take priority over nucleotide hits, except if the protein hit is of lower "quality" than the nucleotide hit where quality is measured by the hit "Method". 
 
-ALLELE > EXACT > BLAST > INTERNAL_STOP > PARTIAL_CONTIG_END > PARTIAL > HMM
+    ALLELE > EXACT > BLAST > INTERNAL_STOP > PARTIAL_CONTIG_END > PARTIAL > HMM
 
 
