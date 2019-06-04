@@ -36,7 +36,8 @@ HMMER version 3.1b2 (http://hmmer.org/) is run using the `--cut_tc -Z 10000`
 options with the HMM database described above. HMM matches with full_score
 < TC1 or domain_score < TC2 are dropped. All HMM matches to HMMs for parent
 nodes of other HMM matches in the hierarchy are removed. The match(es) with the
-highest full score are kept. If a BLAST match is not exact it must agree with an HMM match.
+highest full score are kept. If a BLAST match is not exact and an HMM up the 
+hierarchy exists, it must match at least one HMM up the hierarchy at above cutoff.
 
 ## Translated DNA searches (-n)
 
