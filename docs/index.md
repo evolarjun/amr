@@ -1,6 +1,6 @@
-# NCBI Antimicrobial Resistance Gene Finder+ (AMRFinder+)
+# NCBI Antimicrobial Resistance Gene Finder Plus (AMRFinder+)
 
-## Overview for AMRFinder+ 3.0b
+## Overview for AMRFinder+ 3.0-beta
 
 This software and the accompanying database are designed to find acquired
 antimicrobial resistance genes in protein or nucleotide sequences. With 3.0b
