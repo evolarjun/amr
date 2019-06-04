@@ -1,4 +1,4 @@
-# AMRFinder+ 3.0b
+# AMRFinder+ 3.0-alpha
 
 ## New features
 * Screen for select point mutations for antibiotic resistance from Salmonella, E. coli, and Campylobacter
@@ -10,6 +10,7 @@
     * biocide resistance
     * metal resistance
     * heat resistance
+    * acid resistance
 * Combined and integrated results from nucleotide and protein searches
 
 ## Known bugs
@@ -44,4 +45,4 @@
     # AMR genes, plus genes, protein and nucleotide point mutations and combine results
     amrfinder -p <protein.fa> -O Campylobacter -g <protein.gff> -n <assembly.fa> 
     
-The one fragile part of running combined nucleotide and protein analyses is the association between proteins and GFF file lines. AMRFinder works ok with NCBI's public formats for those files, but since there's no standard for how to associate FASTA entries with GFF lines it can be finicky. If you have any problems email me (aprasad@ncbi.nlm.nih.gov) with examples.
+The one fragile part of running combined nucleotide and protein analyses is the association between proteins and GFF file lines. AMRFinder works with NCBI's public formats for those files, but since there's no standard for how to associate FASTA entries with GFF lines it can be finicky. If you have any problems email us (pd-help@ncbi.nlm.nih.gov) with examples.
