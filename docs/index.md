@@ -5,7 +5,7 @@
 This software and the accompanying database are designed to find acquired
 antimicrobial resistance genes in protein or nucleotide sequences. With 3.0b
 we have added select members of additional classes of genes of interest such
-as virulence factors, biocide and metal resistance genes, and antigens.
+as virulence factors, biocide, heat, acid, and metal resistance genes.
 
 ### New in version 3.0b   *alpha*
 
