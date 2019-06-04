@@ -125,10 +125,10 @@ another line describing the parent FAM.id. The root has an empty value.
 any) that is used at this level in the heirarchy.
 5. **HMM trusted cutoff 1** - Trusted cutoff for full_score
 6. **HMM trusted cutoff 2** - Trusted cutoff for domain_score
-7. **Blast rule cutoff: Complete target idenitty** This is the only "Blast rule" field currently used by AMRFinder, and is overridden by the `--ident_min` option "0.00" means no curated blast rule and default behavior (may have curated HMM)
+7. **Blast rule cutoff: Complete target idenitty** This is overridden by the `--ident_min` option. "0.00" means default behavior (90%, though there will usually be a curated HMM in those cases). Note that this cutoff is used when >= 90% of the reference protein is covered by the hit.
 8. **Blast rule cutoff: Complete target coverage**
 9. **Blast rule cutoff: Complete reference coverage**
-10. **Blast rule cutoff: Partial identity**
+10. **Blast rule cutoff: Partial identity** This is overridden by the `--ident_min` option. "0.00" means default behavior (90%). Note that this rule is used when <90% of the reference protein is covered by the hit.
 11. **Blast rule cutoff: Partial target coverage**
 12. **Blast rule cutoff:  Partial reference coverage**
 13. **Reportable 0/1/2** - Whether a hit at this level will be reported as an AMRFinder hit (0 = non-reportable, 1 = reportable 'plus' gene/family, 2 = AMRFinder core gene/family
