@@ -1,15 +1,15 @@
 # NCBI Antimicrobial Resistance Gene Finder Plus (AMRFinder+)
 
-## Overview for AMRFinder+ 3.0-beta
+## Overview for AMRFinder+ 3.0-alpha
 
 This software and the accompanying database are designed to find acquired
 antimicrobial resistance genes in protein or nucleotide sequences. With 3.0b
 we have added select members of additional classes of genes of interest such
 as virulence factors, biocide and metal resistance genes, and antigens.
 
-### New in version 3.0b   *beta*
+### New in version 3.0b   *alpha*
 
-**NOTE** This is *beta* software still under active development. Production users are encouraged to use Version 1 in mission-critical applications.
+**NOTE** This is *alpha* software still under active development. Production users are encouraged to use Version 1 in mission-critical applications.
 
 See [AMRFinder 3.0b](AMRFinder-3.0b.md) for details
 
