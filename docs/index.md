@@ -1,6 +1,6 @@
-# NCBI Antimicrobial Resistance Gene Finder Plus (AMRFinder+)
+# NCBI Antimicrobial Resistance Gene Finder Plus (AMRFinderPlus)
 
-## Overview for AMRFinder+ 3.0-alpha
+## Overview for AMRFinderPlus 3.0-alpha
 
 This software and the accompanying database are designed to find acquired
 antimicrobial resistance genes in protein or nucleotide sequences. With 3.0b
@@ -28,7 +28,7 @@ See [AMRFinder 3.0b](AMRFinder-3.0b.md) for details
 AMRFinder requires BLAST and HMMER. We provide instructions using BioConda to install the prerequisites.
 
 [Installation Instructions](Installing-AMRFinder.md)<BR>
-[Compile AMRFinder from source](Compile-AMRFinder-from-source.md)
+[Compile AMRFinderPlus from source](Compile-AMRFinder-from-source.md)
 
 ## Mechanism
 
@@ -38,13 +38,22 @@ to search protein sequences for AMR genes along with a hierarchical tree of
 gene families to classify and name novel sequences. With nucleotide sequences
 it uses BLASTX translated searches and the hierarchical tree of gene families.
 
-[Running AMRFinder](Running-AMRFinder.md)<br>
+[Running AMRFinderPlus](Running-AMRFinder.md)<br>
 [Methods](Methods.md)<br>
-[AMRFinder database](AMRFinder-database.md)
+[AMRFinderPlus database](AMRFinder-database.md)
+
+## Other Resources
+
+The Pathogen Detection team at NCBI has curated other [AMR
+Resources](https://www.ncbi.nlm.nih.gov/pathogens/antimicrobial-resistance/resources/)
+we encourage you to checkout. Most notably the data used by AMRFinder in
+a table form with additional metadata is available in the [Reference Gene
+Catalog](https://www.ncbi.nlm.nih.gov/pathogens/isolates#/refgene/) and as
+a tab-delimited file [Reference Gene Catalog on FTP](https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/Data/latest).
 
 ## Help
 
-Note that this version of AMRFinder is an alpha version. If you have any questions about or experience problems running AMRFinder, please contact pd-help@ncbi.nlm.nih.gov.
+Note that this version of AMRFinderPlus is an alpha version. If you have any questions about or experience problems running AMRFinderPlus, please contact pd-help@ncbi.nlm.nih.gov.
 
 [Licenses](Licenses.md)
 

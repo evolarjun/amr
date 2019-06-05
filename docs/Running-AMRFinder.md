@@ -8,7 +8,7 @@ See [testing your installation](Installing-AMRFinder.md#testing-your-installatio
 
 The only required arguments are either `-p <protein_fasta>` for proteins or `-n <nucleotide_fasta>` for nucleotides. We also provide an automatic update
 mechanism to update the code and database by using `-u`. This will update to
-the latest AMR database, as well as any code changes in AMRFinder. Use '--help'
+the latest AMR database, as well as any code changes in AMRFinderPlus. Use '--help'
 to see the complete set of options and flags.
 
 ## Options:
@@ -34,26 +34,26 @@ resistance causing point mutations. Currently limited to one of
 not be screened if only a protein file is provided. To screen known Shigella
 mutations use Escherichia as the organism.
  
-`-u` or `--update` Download the latest version of the AMRFinder database to the default location (location of the AMRFinder binaries/data). Creates a directory under `data` in the format YYYY-MM-DD.<version> (e.g., `2019-03-06.1`).
+`-u` or `--update` Download the latest version of the AMRFinderPlus database to the default location (location of the AMRFinderPlus binaries/data). Creates a directory under `data` in the format YYYY-MM-DD.<version> (e.g., `2019-03-06.1`).
     
 ## Less frequently used options:
 
-`--threads <#>` The number of threads to use for processing. AMRFinder defaults
+`--threads <#>` The number of threads to use for processing. AMRFinderPlus defaults
 to 4 on hosts with >= 4 cores. Setting this number higher than the number of
 cores on the running host may cause `blastp` to fail. Using more than 4 threads
 may speed up searches with nucleotide sequences, but will have little effect if
 only protein is used as the input.
 
-`-o <output_file>` Print AMRFinder output to a file instead of standard out.
+`-o <output_file>` Print AMRFinderPlus output to a file instead of standard out.
 
-`-q` suppress the printing of status messages to standard error while AMRFinder
+`-q` suppress the printing of status messages to standard error while AMRFinderPlus
 is running. Error messages will still be printed.
 
 `-d <database_dir>` or `--database <database_dir>` Use an alternate database
 directory. This can be useful if you want to run an analysis with a database
 version that is not the latest. This should point to the directory containing
-the full AMRFinder database files. It is possible to create your own custom
-databases, but it is not a trivial exercise. See [AMRFinder
+the full AMRFinderPlus database files. It is possible to create your own custom
+databases, but it is not a trivial exercise. See [AMRFinderPlus
 database](AMRFinder-database.md) for details on the format.
 
 `-i <0-1>` or `--ident_min <0-1>` Minimum identity for a blast-based hit hit

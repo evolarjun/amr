@@ -1,8 +1,8 @@
 # Installation
 
-AMRFinder requires HMMER, BLAST+, Linux, and perl. We provide Linux binaries, and the source code is available to compile AMRFinder yourself though we haven't extensively tested compiling AMRFinder on other systems and aren't supporting non-Linux systems at this time.
+AMRFinderPlus requires HMMER, BLAST+, Linux, and perl. We provide Linux binaries, and the source code is available to compile AMRFinderPlus yourself though we haven't extensively tested compiling AMRFinderPlus on other systems and aren't supporting non-Linux systems at this time.
 
-For basic instructions on compiling AMRFinder see [Compile AMRFinder from source](Compile-AMRFinder-from-source.md).
+For basic instructions on compiling AMRFinderPlus see [Compile AMRFinderPlus from source](Compile-AMRFinder-from-source.md).
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ With bioconda the three prerequisites can be installed in one command
 ~$ conda install -y blast hmmer libcurl
 ```
 
-### Installing AMRFinder itself
+### Installing AMRFinderPlus itself
 
 ```bash
 ~$ mkdir amrfinder && cd amrfinder
@@ -38,7 +38,7 @@ With bioconda the three prerequisites can be installed in one command
 ~/amrfinder$ ./amrfinder -p test_prot.fa
 ```
 
-Note that to run AMRFinder you will need to have the BLAST and HMMER binaries in your path. If you installed the prerequisites with bioconda as recommended above you may need to run the following, log out, and log back in before AMRFinder will work.
+Note that to run AMRFinderPlus you will need to have the BLAST and HMMER binaries in your path. If you installed the prerequisites with bioconda as recommended above you may need to run the following, log out, and log back in before AMRFinderPlus will work.
 
 ```bash
 ~/miniconda3/bin/conda init
@@ -57,7 +57,7 @@ There should be no differences in output
 
 ### Email
 
-If you are still having trouble installing AMRFinder or have any questions let me know by emailing us at pd-help@ncbi.nlm.nih.gov. 
+If you are still having trouble installing AMRFinderPlus or have any questions let me know by emailing us at pd-help@ncbi.nlm.nih.gov. 
 
 *NOTE:* The handling of threading is incomplete, this version will not run on machines with < 4 cores.
 
@@ -66,23 +66,23 @@ If you are still having trouble installing AMRFinder or have any questions let m
     # print a list of command-line options
     amrfinder --help 
 
-    # Download the latest AMRFinder plus database
+    # Download the latest AMRFinderPlus database
     amrfinder -u
   
-    # Protein AMRFinder with "plus" genes
+    # Protein AMRFinderPlus
     amrfinder -p <protein.fa> 
 
-    # Translated nucleotide AMRFinder with "plus" genes
+    # Translated nucleotide AMRFinderPlus genes
     amrfinder -n <assembly.fa>
 
-    # protein AMRFinder using GFF to get genomic coordinates
+    # protein AMRFinderPlus using GFF to get genomic coordinates
     amrfinder -p <protein.fa> -g <protein.gff> 
 
-    # search for AMR genes and Campylobacter protein mutations
+    # search for AMRFinderPlus genes and Campylobacter protein mutations
     amrfinder -p <protein.fa> -O Campylobacter 
 
-    # Search for everything AMRFinder can find:
+    # Search for everything AMRFinderPlus can find:
     # AMR genes, plus genes, protein and nucleotide point mutations and combine results
     amrfinder -p <protein.fa> -O Campylobacter -g <protein.gff> -n <assembly.fa> 
     
-The one fragile part of running combined nucleotide and protein analyses is the association between proteins and GFF file lines. AMRFinder works ok with NCBI's public formats for those files, but since there's no standard for how to associate FASTA entries with GFF lines it can be finicky. If you have any problems email us at pd-help@ncbi.nlm.nih.gov with examples.
+The one fragile part of running combined nucleotide and protein analyses is the association between proteins and GFF file lines. AMRFinderPlus works ok with NCBI's public formats for those files, but since there's no standard for how to associate FASTA entries with GFF lines it can be finicky. If you have any problems email us at pd-help@ncbi.nlm.nih.gov with examples.

@@ -1,4 +1,4 @@
-# AMRFinder+ 3.0-alpha
+# AMRFinderPlus 3.0-alpha
 
 ## New features
 * Screen for select point mutations for antibiotic resistance from Salmonella, E. coli, and Campylobacter
@@ -15,8 +15,8 @@
 
 ## Known bugs
 
-* Right now AMRFinder will only run on machines with 4 or more cores. This will be fixed in the release version.
-* The association between GFF lines and FASTA entries is fragile. AMRFinder works with NCBI produced GFF and protein files, but possibly not others. 
+* Right now AMRFinderPlus will only run on machines with 4 or more cores. This will be fixed in the release version.
+* The association between GFF lines and FASTA entries is fragile. AMRFinderPlus works with NCBI produced GFF and protein files, but possibly not others. 
 * Customers have sometimes had linking problems because of glibc versions and libcurl. Please let us know if you have problems.
 
 *NOTE:* The handling of threading is incomplete, this version will not run on machines with < 4 cores.
@@ -26,23 +26,23 @@
     # print a list of command-line options
     amrfinder --help 
 
-    # Download the latest AMRFinder plus database
+    # Download the latest AMRFinderPlus database
     amrfinder -u
   
-    # Protein AMRFinder with "plus" genes
+    # Protein AMRFinderPlus
     amrfinder -p <protein.fa> 
 
-    # Translated nucleotide AMRFinder with "plus" genes
+    # Translated nucleotide AMRFinderPlus
     amrfinder -n <assembly.fa>
 
-    # protein AMRFinder using GFF to get genomic coordinates
+    # protein AMRFinderPlus using GFF to get genomic coordinates
     amrfinder -p <protein.fa> -g <protein.gff> 
 
     # search for AMR genes and Campylobacter protein mutations
     amrfinder -p <protein.fa> -O Campylobacter 
 
-    # Search for everything AMRFinder can find:
+    # Search for everything AMRFinderPlus can find:
     # AMR genes, plus genes, protein and nucleotide point mutations and combine results
     amrfinder -p <protein.fa> -O Campylobacter -g <protein.gff> -n <assembly.fa> 
     
-The one fragile part of running combined nucleotide and protein analyses is the association between proteins and GFF file lines. AMRFinder works with NCBI's public formats for those files, but since there's no standard for how to associate FASTA entries with GFF lines it can be finicky. If you have any problems email us (pd-help@ncbi.nlm.nih.gov) with examples.
+The one fragile part of running combined nucleotide and protein analyses is the association between proteins and GFF file lines. AMRFinderPlus works with NCBI's public formats for those files, but since there's no standard for how to associate FASTA entries with GFF lines it can be finicky. If you have any problems email us (pd-help@ncbi.nlm.nih.gov) with examples.

@@ -1,8 +1,8 @@
 # Introduction
 
-The AMRFinder database files are used by the AMRFinder process as part of the
+The AMRFinderPlus database files are used by the AMRFinderPlus process as part of the
 Pathogen Detection Pipeline (https://www.ncbi.nlm.nih.gov/pathogens) as well as
-the command-line version of AMRFinder. The current version focuses on acquired
+the command-line version of AMRFinderPlus. The current version focuses on acquired
 or intrinsic AMR gene products. Currently it does not include tools for
 analyzing adaptive resistance mutations such as point mutations in ribosomal
 RNA genes, or promoter-affecting mutations.
@@ -12,11 +12,11 @@ Antibiotic Resistant Organisms (NDARO) and more user-friendly access to the
 data is available at
 https://www.ncbi.nlm.nih.gov/pathogens/antimicrobial-resistance/. The rest of
 this document describes the format and structure of the database as it used by
-AMRFinder. 
+AMRFinderPlus. 
 
 ## Genotype vs. Phenotype
 
-Users of AMRFinder or its supporting data files are cautioned that presence of
+Users of AMRFinderPlus or its supporting data files are cautioned that presence of
 a gene encoding an antimicrobial resistance (AMR) protein does not necessarily
 indicate that the isolate carrying the gene is resistant to the corresponding
 antibiotic. AMR genes must be expressed to confer resistance. An enzyme that
@@ -32,7 +32,7 @@ over-interpretation.
 
 ## Availability
 
-The AMRFinder database is publicly available at https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinder/data. Files on the FTP site are in the structure:
+The AMRFinderPlus database is publicly available at https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinder/data. Files on the FTP site are in the structure:
 
          |- data
               |- latest
@@ -52,10 +52,10 @@ The AMRFinder database is publicly available at https://ftp.ncbi.nlm.nih.gov/pat
               |- YYYY-MM-DD.#
                 ...
 
-Where [data/latest](https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinder/data/latest/) is a link to the most recent version of the AMRFinder database.
+Where [data/latest](https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinder/data/latest/) is a link to the most recent version of the AMRFinderPlus database.
 
 For easier analysis with other tools we provide the reference genes used by
-AMRFinder along with with additional metadata in the [Reference Gene
+AMRFinderPlus along with with additional metadata in the [Reference Gene
 Browser](https://www.ncbi.nlm.nih.gov/pathogens/isolates#/refgene/) and as a
 [tab-delimited
 file](https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/Data/latest/Bacterial_Reference_Gene_Database.txt).
@@ -65,10 +65,10 @@ The HMMs along with seed alignments are published on [our ftp site](https://ftp.
 
 Within each database directory there are the following files
 
-* `fam.tab` - Tab-delimited file used internally by AMRFinder to define the hierarchical structure behind the AMRFinder database.
-* `AMRProt` - Curated AMR protiens in FASTA format with a custom formatted defline containing metadata used by AMRFinder for each sequence.
+* `fam.tab` - Tab-delimited file used internally by AMRFinderPlus to define the hierarchical structure behind the AMRFinderPlus database.
+* `AMRProt` - Curated AMR protiens in FASTA format with a custom formatted defline containing metadata used by AMRFinderPlus for each sequence.
 * `AMR.LIB` - A file of curated AMR HMMs with trusted cutoffs.
-* `AMR_CDS` - Coding sequences for each protein in `AMRProt`. This file is not directly used by AMRFinder, but is included because it is helpful in other analyses.
+* `AMR_CDS` - Coding sequences for each protein in `AMRProt`. This file is not directly used by AMRFinderPlus, but is included because it is helpful in other analyses.
 * `AMRProt-point_mut.tab` - Tab-delimited file of protein point mutation information
 * `AMR_DNA-*` - Curated resistance causing nucleotide sequences for point mutation assessment
 * `AMR_DNA-*.tab` - Tab-delimited file of nucleotide point-mutation information
@@ -112,8 +112,8 @@ by manual examination of results for some HMMs, but otherwise `NC`=`TC`.
 
 ## `fam.tab`
 
-Tab-delimited file used internally by AMRFinder to define the heirarchical
-gene/protein family structure behind the AMRFinder database.
+Tab-delimited file used internally by AMRFinderPlus to define the heirarchical
+gene/protein family structure behind the AMRFinderPlus database.
 
 Fields are separated by tab characters and contain as follows:
 
@@ -131,7 +131,7 @@ any) that is used at this level in the heirarchy.
 10. **Blast rule cutoff: Partial identity** This is overridden by the `--ident_min` option. "0.00" means default behavior (90%). Note that this rule is used when <90% of the reference protein is covered by the hit.
 11. **Blast rule cutoff: Partial target coverage**
 12. **Blast rule cutoff:  Partial reference coverage**
-13. **Reportable 0/1/2** - Whether a hit at this level will be reported as an AMRFinder hit (0 = non-reportable, 1 = reportable 'plus' gene/family, 2 = AMRFinder core gene/family
+13. **Reportable 0/1/2** - Whether a hit at this level will be reported as an AMRFinderPlus hit (0 = non-reportable, 1 = reportable 'plus' gene/family, 2 = AMRFinder core gene/family
 14. **Family name** - The gene name to be reported for hits at this level
 
 # Methods
@@ -155,7 +155,7 @@ Sources, published or collaborative, include
 
 In addition, NCBI continually mines the literature for new reports of AMR
 proteins.  The ResFams collection of AMR HMMs provided important help
-early in our efforts to develop the AMR protein hierarchy and the AMRFinder
+early in our efforts to develop the AMR protein hierarchy and the AMRFinderPlus
 tool, but all models were rebuilt with new seed alignment sequences, new
 alignments, new cutoff scores, and new biocuration. Development continued until
 all reportable proteins were covered by at least one AMR HMM, and
@@ -163,7 +163,7 @@ classification by HMM was sufficiently specific.
 
 NCBI is also responsible for the assignment of new beta lactamase alleles for
 certain families. Once new alleles are released, then they are immediately
-incorporated into AMRFinder. See this page for more information:
+incorporated into AMRFinderPlus. See this page for more information:
 
 https://www.ncbi.nlm.nih.gov/pathogens/submit-beta-lactamase/
 
@@ -183,7 +183,7 @@ mutational events increase their expression. We avoided including such proteins
 in the release, for now, since flagging such proteins makes the reports on AMR
 proteins identified far more difficult to read and understand.
 
-At present, AMRFinder provides analysis of adaptive resistance, in which mutational
+At present, AMRFinderPlus provides analysis of adaptive resistance, in which mutational
 processes rather than gene acquisition or intrinsic function are responsible of
 the resistance that may be observed for only a few taxonomic groups. Thus, the files provided will not help
 much in finding sources of resistance in _Mycobacterium tuberculosis_, where
@@ -201,7 +201,7 @@ this is separate from the alignment trimming step below.
 
 ### HMMs
 
-All HMMs used by AMRFinder can be found in the library
+All HMMs used by AMRFinderPlus can be found in the library
 [AMR.LIB](https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinder/data/latest/AMR.LIB)
 and with seed alignments and some additional data on our [NCBIfam ftp
 site](https://ftp.ncbi.nlm.nih.gov/hmm/NCBIfam-AMRFinder/latest). This library
@@ -223,7 +223,7 @@ GA are always set to be identical. If NC is set to be the same as TC,
 this indicates that the noise cutoff has not yet been manually reviewed.
 Because all three types of cutoff are provided, searches may be performed
 using any of the HMMER package switches, `--cut_tc`, `--cut_ga`, or `--cut_nc`.
-AMRFinder uses `--cut_tc`.
+AMRFinderPlus uses `--cut_tc`.
 
 ## "Plus" proteins
 
@@ -236,7 +236,7 @@ intrinsic in some organisms.
 
 ## Gene/Protein Hierarchy
 
-AMRFinder treats all families and alleles of AMR proteins as nodes in
+AMRFinderPlus treats all families and alleles of AMR proteins as nodes in
 hierarchical tree.  Below is an example of the parent-child relationships for
 a beta-lactamase allele and the broader families that contain it.
 
@@ -246,7 +246,7 @@ a beta-lactamase allele and the broader families that contain it.
           blaKPC - KPC family carbapenem-hydrolyzing class A beta-lactamase
             blaKPC-2 - carbapenem-hydrolyzing class A beta-lactamase KPC-2 (allele)
 
-Evidence used to annotate proteins relies on HMM and BLAST.  AMRFinder will
+Evidence used to annotate proteins relies on HMM and BLAST.  AMRFinderPlus will
 assign the most specific name it can find that is justified by the evidence.
 In the example shown above, the bottom level represents an allele. Assigning an
 AMR protein to a specific allele requires a 100% identity BLAST match.  Each
