@@ -50,6 +50,7 @@ namespace
 
 // PAR
 constexpr size_t threads_max_min = 1;  // was: 4
+constexpr size_t threads_def = 4;
 // Cf. amr_report.cpp
 constexpr double ident_min_def = 0.9;
 constexpr double partial_coverage_min_def = 0.5;
@@ -75,9 +76,10 @@ struct ThisApplication : ShellApplication
     	addKey ("coverage_min", "Minimum coverage of the reference protein (0..1)", toString (partial_coverage_min_def), 'c', "MIN_COV");
       addKey ("organism", "Taxonomy group for point mutation assessment\n    " ORGANISMS, "", 'O', "ORGANISM");
     	addKey ("translation_table", "NCBI genetic code for translated blast", "11", 't', "TRANSLATION_TABLE");
-    	addKey ("parm", "amr_report parameters for testing: -nosame -noblast -skip_hmm_check -bed", "", '\0', "PARM");
+    	addFlag ("core", "Report only core AMR families");  // PD-2789
     	addKey ("point_mut_all", "File to report all target positions of reference point mutations", "", '\0', "POINT_MUT_ALL_FILE");
     	addKey ("blast_bin", "Directory for BLAST. Deafult: $BLAST_BIN", "", '\0', "BLAST_DIR");
+    	addKey ("parm", "amr_report parameters for testing: -nosame -noblast -skip_hmm_check -bed", "", '\0', "PARM");
       addKey ("output", "Write output to OUTPUT_FILE instead of STDOUT", "", 'o', "OUTPUT_FILE");
       addFlag ("quiet", "Suppress messages to STDERR", 'q');
 	  #ifdef SVN_REV
@@ -95,7 +97,7 @@ struct ThisApplication : ShellApplication
   void initEnvironment () final
   {
     ShellApplication::initEnvironment ();
-    var_cast (name2arg ["threads"] -> asKey ()) -> defaultValue = "4" /*toString (threads_max_min)*/;  
+    var_cast (name2arg ["threads"] -> asKey ()) -> defaultValue = to_string (threads_def);  
   }
   
   
@@ -131,9 +133,10 @@ struct ThisApplication : ShellApplication
     const double cov           =             arg2double ("coverage_min");
     const string organism      = shellQuote (getArg ("organism"));   
     const uint   gencode       =             arg2uint ("translation_table"); 
-    const string parm          =             getArg ("parm");  
+    const bool   core_only     =             getFlag ("core");
     const string point_mut_all =             getArg ("point_mut_all");  
           string blast_bin     =             getArg ("blast_bin");
+    const string parm          =             getArg ("parm");  
     const string output        = shellQuote (getArg ("output"));
     const bool   quiet         =             getFlag ("quiet");
     
@@ -146,7 +149,7 @@ struct ThisApplication : ShellApplication
     const Verbose vrb (qc_on);
     
     if (threads_max < threads_max_min)
-      throw runtime_error ("Number of threads cannot be less than " + toString (threads_max_min));
+      throw runtime_error ("Number of threads cannot be less than " + to_string (threads_max_min));
     
 		if (ident != -1.0 && (ident < 0.0 || ident > 1.0))
 		  throw runtime_error ("ident_min must be between 0 and 1");
@@ -166,7 +169,11 @@ struct ThisApplication : ShellApplication
     
     const size_t threads_max_max = get_threads_max_max (logFName);
     if (threads_max > threads_max_max)
-      throw runtime_error ("Number of threads cannot be greater than " + toString (threads_max_max) + " on this computer");
+    {
+      cout << "The number of threads cannot be greater than " << threads_max_max << " on this computer" << endl
+           << "The current number of threads is " << threads_max << ", reducing to " << threads_max_max << endl;
+      threads_max = threads_max_max;
+    }
 
 
 		const string defaultDb (execDir + "/data/latest");
@@ -294,7 +301,6 @@ struct ThisApplication : ShellApplication
         
 
     const string qcS (qc_on ? "-qc  -verbose 1" : "");
-    const string point_mut_allS (point_mut_all. empty () ? "" : ("-point_mut_all " + point_mut_all));
 		const string force_cds_report (! emptyArg (dna) && ! emptyArg (organism) ? "-force_cds_report" : "");  // Needed for point_mut
 		
 								  
@@ -378,13 +384,13 @@ struct ThisApplication : ShellApplication
   		  if (threadsAvailable >= 2)
   		  {
     		  exec ("mkdir " + tmp + ".chunk");
-    		  exec (fullProg ("fasta2parts") + dna + " " + toString (threadsAvailable) + " " + tmp + ".chunk  -log " + logFName, logFName);   // PAR
+    		  exec (fullProg ("fasta2parts") + dna + " " + to_string (threadsAvailable) + " " + tmp + ".chunk  -log " + logFName, logFName);   // PAR
     		  exec ("mkdir " + tmp + ".blastx_dir");
     		  FileItemGenerator fig (false, true, tmp + ".chunk");
     		  string item;
     		  while (fig. next (item))
       			th << thread (exec, fullProg ("blastx") + "  -query " + tmp + ".chunk/" + item + " -db " + db + "/AMRProt  "
-      			  "-show_gis  -word_size 3  -evalue 1e-20  -query_gencode " + toString (gencode) + "  "
+      			  "-show_gis  -word_size 3  -evalue 1e-20  -query_gencode " + to_string (gencode) + "  "
       			  "-seg no  -comp_based_stats 0  -max_target_seqs 10000  "
       			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' "
       			  "-out " + tmp + ".blastx_dir/" + item + " > /dev/null 2> /dev/null", string ());
@@ -392,7 +398,7 @@ struct ThisApplication : ShellApplication
   		  }
   		  else
     			th. exec (fullProg ("blastx") + "  -query " + dna + " -db " + db + "/AMRProt  "
-    			  "-show_gis  -word_size 3  -evalue 1e-20  -query_gencode " + toString (gencode) + "  "
+    			  "-show_gis  -word_size 3  -evalue 1e-20  -query_gencode " + to_string (gencode) + "  "
     			  "-seg no  -comp_based_stats 0  -max_target_seqs 10000  " 
     			  "-outfmt '6 qseqid sseqid length nident qstart qend qlen sstart send slen qseq sseq' "
     			  "-out " + tmp + ".blastx > /dev/null 2> /dev/null", threadsAvailable);
@@ -415,9 +421,11 @@ struct ThisApplication : ShellApplication
   	  exec ("cat " + tmp + ".blastx_dir/* > " + tmp + ".blastx");
 		
 
+    const string point_mut_allS (point_mut_all. empty () ? "" : ("-point_mut_all " + point_mut_all));
+    const string coreS (core_only ? " -core" : "");
 		exec (fullProg ("amr_report") + " -fam " + db + "/fam.tab  " + blastp_par + "  " + blastx_par
 		  + "  -organism " + organism + "  -point_mut " + db + "/AMRProt-point_mut.tab " + point_mut_allS + " "
-		  + force_cds_report + " -pseudo"
+		  + force_cds_report + " -pseudo" + coreS
 		  + (ident == -1 ? string () : "  -ident_min "    + toString (ident)) 
 		  + "  -coverage_min " + toString (cov)
 		  + " " + qcS + " " + parm + " -log " + logFName + " > " + tmp + ".amr-raw", logFName);
