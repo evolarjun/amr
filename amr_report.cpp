@@ -238,12 +238,9 @@ struct HmmAlignment
       
       
   bool good () const
-    { /*cout << fam << endl;
-    	if (fam)
-    		cout << fam->id << ' ' << fam->hmm << ' ' << fam->tc1 << ' ' << fam->tc2 << endl; */
-    	return    fam 
-             && ! fam->hmm. empty ()
-             && score1 >= fam->tc1
+    { QC_ASSERT (fam);
+      QC_ASSERT (! fam->hmm. empty ());
+    	return    score1 >= fam->tc1
              && score2 >= fam->tc2
            //&& fam->reportable
              ; 
@@ -730,7 +727,8 @@ struct BlastAlignment
 			                 : (isLeft (method, "ALLELE") ? famId : nvl (getFam () -> genesymbol, na))
 	              )
 	           <<   (pm. empty () ? proteinName : pm. name)
-	              + ifS (reportPseudo, ifS (frameShift, " " + frameShiftS));
+	              + ifS (reportPseudo, ifS (frameShift, " " + frameShiftS))
+	           << (isPointMut () || getFam () -> reportable >= 2 ? "core" : "plus");  // PD-2825
           // PD-1856
 	        if (isPointMut ())
 	          td << "AMR"
@@ -1098,7 +1096,8 @@ public:
   	  if (! seqId2locusTag. empty ())
   	  {
   	  	string s;
-  	  	EXEC_ASSERT (find (seqId2locusTag, locusTag, s));
+  	  	if (! find (seqId2locusTag, locusTag, s))
+  	  	  throw runtime_error ("Target " + strQuote (locusTag) + " is not found in GFF-match file");
   	  	locusTag = s;
   	  }
   	  if (const Set<Locus>* cdss_ = findPtr (annot. prot2cdss, locusTag))
@@ -1149,6 +1148,7 @@ struct Batch
   // Reference input
   map<string/*hmm*/,const Fam*> hmm2fam;
   uchar reportable_min {0};
+  Vector<long> suppress_prots;
 
   // Target input
   typedef  List<BlastAlignment>  BlastAls; 
@@ -1166,6 +1166,7 @@ struct Batch
   Batch (const string &famFName,
          const string &organism, 
          const string &point_mut,
+         const string &suppress_prot_FName,
          bool non_reportable,
          bool report_core_only)
     : reportable_min (non_reportable 
@@ -1265,7 +1266,6 @@ struct Batch
 	  	  QC_ASSERT (roots == 1);
 	  	}
 	  	
-
 	    if (! organism. empty ())
 	    {
 	    	if (verbose ())
@@ -1279,14 +1279,16 @@ struct Batch
 					char alleleChar;
     	  	iss. reset (f. line);
 	  	  	iss >> organism_ >> accession >> pos >> alleleChar >> geneMutation >> geneMutationGen >> classS >> subclass >> name;
-	  	  	ASSERT (pos > 0);
+	  	  	QC_ASSERT (pos > 0);
 	  	  	replace (organism_, '_', ' ');
 	  	  	if (organism_ == organism)
 	  	  		accession2pointMuts [accession] << move (PointMut ((size_t) pos, alleleChar, geneMutation, geneMutationGen, classS, subclass, name));
 	  	  }
+	  	#if 0
 	  	  // PD-2008
 	  	  if (accession2pointMuts. empty ())
 	  	  	throw runtime_error ("No protein point mutations for organism " + strQuote (organism) + " found in the AMRFinder database. Please check the " + strQuote ("organism") + " option.");
+	  	#endif
 	  	  for (auto& it : accession2pointMuts)
 	  	  {
 	  	  	it. second. sort ();
@@ -1294,6 +1296,21 @@ struct Batch
 	  	  	//throw runtime_error ("Duplicate mutations for " + it. first);
 	  	  }
 	    }
+	  	  
+  	  if (! suppress_prot_FName. empty ())
+  	  {
+  	    ifstream f (suppress_prot_FName);  	  	    
+	  	  while (! f. eof ())
+	  	  {
+	  	    long gi = 0;
+	  	    f >> gi;
+	  	    ASSERT (gi >= 0);
+	  	    if (gi == 0)
+	  	      break;
+	  	    suppress_prots << gi;
+  	    }
+  	  }
+  	  suppress_prots. sort ();
 	  }
 private:
   static void toProb (double &x)
@@ -1539,6 +1556,7 @@ public:
 	         << "Strand";  // targetStrand
 	    td << (print_fam ? "FAM.id" : "Gene symbol")
 	       << "Sequence name"
+	       << "Scope"  // PD-2825
 	       // PD-1856
 	       << "Element type"
 	       << "Element subtype"
@@ -1574,7 +1592,9 @@ public:
   	  	  ;
   	  	else
       	  blastAl. saveText (os);
-   	  else if (blastAl. getFam () -> reportable >= reportable_min)
+   	  else if (   blastAl. getFam () -> reportable >= reportable_min
+   	           && ! suppress_prots. containsFast (blastAl. gi)
+   	          )
     	  blastAl. saveText (os);
     }
 	}
@@ -1705,6 +1725,7 @@ struct ThisApplication : Application
       addKey ("organism", "Taxonomy group for point mutations");
       addKey ("point_mut", "Point mutation table");
       addKey ("point_mut_all", "File to report all target positions of reference point mutations");
+      addKey ("suppress_prot", "File with protein GIs to suppress");
       addKey ("ident_min", "Min. identity to the reference protein (0..1). -1 means use a curated threshold if it exists and " + toString (ident_min_def) + " otherwise", "-1");
       addKey ("coverage_min", "Min. coverage of the reference protein (0..1) for partial hits", toString (partial_coverage_min_def));
       addFlag ("skip_hmm_check", "Skip checking HMM for a BLAST hit");
@@ -1741,6 +1762,7 @@ struct ThisApplication : Application
     const string organism             = getArg ("organism");  
     const string point_mut            = getArg ("point_mut");  
     const string point_mut_all_FName  = getArg ("point_mut_all");
+    const string suppress_prot_FName  = getArg ("suppress_prot");
           double ident_min            = str2<double> (getArg ("ident_min"));  
     const double partial_coverage_min = str2<double> (getArg ("coverage_min"));  
     const bool   skip_hmm_check       = getFlag ("skip_hmm_check"); 
@@ -1753,12 +1775,12 @@ struct ThisApplication : Application
     const bool   nosame               = getFlag ("nosame");
     const bool   noblast              = getFlag ("noblast");
     
-    ASSERT (hmmsearch. empty () == hmmDom. empty ());
-    IMPLY (! outFName. empty (), ! blastpFName. empty ());
-    IMPLY (! gffFName. empty (), ! blastpFName. empty ());
+    QC_ASSERT (hmmsearch. empty () == hmmDom. empty ());
+    QC_IMPLY (! outFName. empty (), ! blastpFName. empty ());
+    QC_IMPLY (! gffFName. empty (), ! blastpFName. empty ());
     if (! blastpFName. empty () && ! blastxFName. empty () && gffFName. empty ())
     	throw runtime_error ("If BLASTP and BLASTX files are present then a GFF file must be present");
-       	
+       			  
     
     if (ident_min == -1.0)
       ident_min = ident_min_def;
@@ -1787,7 +1809,7 @@ struct ThisApplication : Application
       point_mut_all. reset (new OFStream (point_mut_all_FName));
       
 
-    Batch batch (famFName, organism, point_mut, non_reportable, report_core_only);  
+    Batch batch (famFName, organism, point_mut, suppress_prot_FName, non_reportable, report_core_only);  
   
   
     // Input 

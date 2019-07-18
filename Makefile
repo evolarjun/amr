@@ -24,20 +24,15 @@
 # make all SVNREV=-D\'SVN_REV=\"$VERSION\"\' or use
 # a version.txt file
 ifeq ($(wildcard version.txt),)
-	VERSION_STRING := $(shell svnversion -n .)
+	VERSION_STRING := $(shell git describe --tags)
 else
 	VERSION_STRING := $(shell cat version.txt)
 endif
 SVNREV := -D'SVN_REV="$(VERSION_STRING)"'
 
 # Define default paths
-prefix=/usr/local
-bindir = $(prefix)/bin
-datadir=$(prefix)/share
-BLAST_BIN=$(BIN)
-HMMER_BIN=$(BIN)
-INSTALL_DIR = $(datadir)/amrfinder
-INSTALL_PROGRAM=install
+PREFIX ?= /usr/local
+INSTALL=install
 
 CPPFLAGS = -std=gnu++11 -pthread -malign-double -fno-math-errno -O3 $(SVNREV)
 
@@ -63,12 +58,12 @@ amr_reportOBJS=amr_report.o common.o gff.o
 amr_report:	$(amr_reportOBJS)
 	$(CXX) -o $@ $(amr_reportOBJS)
 
-amrfinder.o:  common.hpp common.inc
+amrfinder.o:  common.hpp common.inc amrfinder.inc
 amrfinderOBJS=amrfinder.o common.o
 amrfinder:	$(amrfinderOBJS)
 	$(CXX) -o $@ $(amrfinderOBJS) -pthread 
 
-amrfinder_update.o:  common.hpp common.inc
+amrfinder_update.o:  common.hpp common.inc amrfinder.inc
 amrfinder_updateOBJS=amrfinder_update.o common.o
 amrfinder_update:      $(amrfinder_updateOBJS)
 	$(CXX) -o $@ $(amrfinder_updateOBJS) -lcurl
@@ -99,7 +94,7 @@ clean:
 	rm -f $(BINARIES)
 
 install:
-	$(INSTALL_PROGRAM) --target-directory=$(INSTALL_DIR) $(BINARIES)
+	$(INSTALL) --target-directory=$(PREFIX)/bin $(BINARIES)
 
 # amrfinder binaries for github binary release
 GITHUB_FILE=amrfinder_binaries_v$(VERSION_STRING)
@@ -110,6 +105,9 @@ github_binaries:
 		echo >&2 "version.txt required to make a distribution file"; \
 		false; \
 	fi
+#   first recompile amrfinder.o to pick up the new version info
+	rm amrfinder.o amrfinder
+	make
 	mkdir $(GITHUB_FILE)
 	echo $(VERSION_STRING) > $(GITHUB_FILE)/version.txt
 	cp $(GITHUB_FILES) $(GITHUB_FILE)
@@ -140,3 +138,20 @@ dist:
 	rm -r $(DISTDIR)/*
 	rmdir $(DISTDIR)
 
+
+test:
+	curl -O https://raw.githubusercontent.com/ncbi/amr/v3b/test_dna.fa \
+		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.fa \
+		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.gff \
+		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_both.expected \
+		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_dna.expected \
+		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.expected
+	amrfinder --plus -p test_prot.fa -g test_prot.gff -O Campylobacter > test_prot.got
+	diff test_prot.expected test_prot.got
+	amrfinder --plus -n test_dna.fa -O Campylobacter > test_dna.got
+	diff test_dna.expected test_dna.got
+	amrfinder --plus -n test_dna.fa -p test_prot.fa -g test_prot.gff -O Campylobacter > test_both.got
+	diff test_both.got test_both.expected
+
+
+     -O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.expected
