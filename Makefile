@@ -35,11 +35,10 @@ PREFIX ?= /usr/local
 INSTALL=install
 
 CPPFLAGS = -std=gnu++11 -pthread -malign-double -fno-math-errno -O3 $(SVNREV)
-  $(SVNREV) \
-  -Wno-error=misleading-indentation -Wno-nonnull-compare \
+  -Wno-error=misleading-indentation -Wno-nonnull-compare 
 
 CXX=g++
-COMPILE.cpp= $(CXX) $(CPPFLAGS)  -c 
+COMPILE.cpp= $(CXX) $(CPPFLAGS) $(SVNREV) -c 
 
 
 .PHONY: all clean install release
@@ -96,7 +95,7 @@ clean:
 	rm -f $(BINARIES)
 
 install:
-	$(INSTALL) --target-directory=$(PREFIX)/bin $(BINARIES)
+	$(INSTALL) -D --target-directory=$(PREFIX)/bin $(BINARIES)
 
 # amrfinder binaries for github binary release
 GITHUB_FILE=amrfinder_binaries_v$(VERSION_STRING)
