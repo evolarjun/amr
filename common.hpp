@@ -77,18 +77,7 @@
 #include <algorithm>
 
 #include <thread>
-#ifdef _MSC_VER
-	#pragma warning(push)
-	#pragma warning(disable:4265)
-#endif
-#include <mutex>
-#ifdef _MSC_VER
-	#pragma warning(pop)
-#endif
-
-using namespace std;
-
-
+#include <math.h>
 
 namespace Common_sp
 {

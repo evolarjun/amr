@@ -35,6 +35,8 @@ PREFIX ?= /usr/local
 INSTALL=install
 
 CPPFLAGS = -std=gnu++11 -pthread -malign-double -fno-math-errno -O3 $(SVNREV)
+  $(SVNREV) \
+  -Wno-error=misleading-indentation -Wno-nonnull-compare \
 
 CXX=g++
 COMPILE.cpp= $(CXX) $(CPPFLAGS)  -c 
