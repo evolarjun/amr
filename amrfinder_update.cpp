@@ -47,9 +47,6 @@ using namespace Common_sp;
 #include "amrfinder.inc"
 
 
-#define ORGANISMS "Campylobacter|Escherichia|Salmonella"  // from table GENE3P
-
-
 
 namespace 
 {
@@ -249,13 +246,12 @@ struct ThisApplication : ShellApplication
       exec ("rm " + latestLink);
     exec ("ln -s " + latest_version + " " + latestLink);
     
-    const StringVector dnaPointMuts (ORGANISMS, '|');
+    StringVector dnaPointMuts (ORGANISMS, '|');
     
     stderr << "Dowloading AMRFinder database version " << latest_version << " into " << latestDir << "\n";
     fetchAMRFile (curl, latestDir, "AMR.LIB");
     fetchAMRFile (curl, latestDir, "AMRProt");
     fetchAMRFile (curl, latestDir, "AMRProt-point_mut.tab");
-    fetchAMRFile (curl, latestDir, "AMRProt-suppress");
     fetchAMRFile (curl, latestDir, "AMR_CDS");
     for (const string& dnaPointMut : dnaPointMuts)
     {
