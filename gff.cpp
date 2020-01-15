@@ -63,7 +63,7 @@ Locus::Locus (size_t lineNum_arg,
 , contigLen (crossOriginSeqLen_arg)
 , crossOrigin (bool (crossOriginSeqLen_arg))
 { 
-//ASSERT (lineNum >= 1);
+//QC_ASSERT (lineNum >= 1);
 	trim (contig, '_');
 	if (contig. empty ())
 		throw runtime_error ("Empty contig name");
@@ -72,10 +72,10 @@ Locus::Locus (size_t lineNum_arg,
 		swap (start, stop);
 		start--;
 		stop++;
-	  ASSERT (contigLen);
-		ASSERT (stop <= contigLen);
+	  QC_ASSERT (contigLen);
+		QC_ASSERT (stop <= contigLen);
 	}
-  ASSERT (start < stop); 
+  QC_ASSERT (start < stop); 
 }
   
   
@@ -98,8 +98,13 @@ bool Locus::operator< (const Locus& other) const
 
 Annot::Annot (Gff,
 	            const string &fName,
-	            bool locus_tag)
+	            bool trimProject,
+	            bool locus_tag,
+	            bool pgap)
 {
+  IMPLY (pgap, ! locus_tag);
+  IMPLY (pgap, ! trimProject);
+
 	if (fName. empty ())
 		throw runtime_error ("Empty GFF file name");
 	
@@ -134,8 +139,9 @@ Annot::Annot (Gff,
     if (attributes. empty ())
     	throw runtime_error (errorS + "9 fields are expected in each line");
 
-    if (contains (contig, ":"))
-      findSplit (contig, ':');  // = project_id
+    if (trimProject)
+      if (contains (contig, ":"))
+        findSplit (contig, ':');  // = project_id
     if (contig. empty ())
     	throw runtime_error (errorS + "empty sequence indentifier");
 	  for (const char c : contig)
@@ -146,6 +152,9 @@ Annot::Annot (Gff,
         && type != "gene"
         && type != "pseudogene"
        )
+      continue;
+      
+    if (pgap && type != "CDS")
       continue;
       
     long start = -1;
@@ -185,25 +194,37 @@ Annot::Annot (Gff,
     const bool partial = contains (attributes, "partial=true");
 
     string locusTag;
-    const string locusTagName (locus_tag || pseudo ? "locus_tag=" : "Name=");
+    const string locusTagName (! pgap && (locus_tag || pseudo) ? "locus_tag=" : "Name=");
     while (! attributes. empty ())
     {
 	    locusTag = findSplit (attributes, ';');
-	    while (trimPrefix (locusTag, "_"));  // trim leading spaces
+  	  trim (locusTag, tmpSpace);
 	    if (isLeft (locusTag, locusTagName))
 	      break;
 	  }
     if (! isLeft (locusTag, locusTagName))
     	continue;
     //throw runtime_error (errorS + "No attribute '" + locusTagName + "': " + f. line);
-	  if (contains (locusTag, ":"))
+	  if (! pgap && contains (locusTag, ":"))
 	    { EXEC_ASSERT (isLeft (findSplit (locusTag, ':'), locusTagName)); }
 	  else
 	    findSplit (locusTag, '='); 
 	  trimPrefix (locusTag, "\"");
 	  trimSuffix (locusTag, "\"");
 	  trim (locusTag, tmpSpace);
-	  ASSERT (! locusTag. empty ());
+	  if (pgap)
+	  {
+	    size_t pos = locusTag. rfind (':');
+	    if (pos != string::npos)
+	    {
+	      locusTag [pos] = '|';
+	      locusTag = "gnl|" + locusTag;
+	    }
+	    pos = contig. rfind (':');
+	    if (pos != string::npos)
+	      contig [pos] = '|';
+	  }
+	  QC_ASSERT (! locusTag. empty ());
 	  
 	  const Locus locus (f. lineNum, contig, (size_t) start, (size_t) stop, strand == "+", partial, 0);
 	#if 0

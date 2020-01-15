@@ -47,9 +47,6 @@ namespace
 
 
 const string locus_tagS ("[locus_tag=");
-
-
-
 const string noFile ("emptystring");
 
 
@@ -63,9 +60,11 @@ struct ThisApplication : Application
       addPositional ("gff", ".gff-file, if " + strQuote (noFile) + " then exit 0");
       addKey ("prot", "Protein FASTA file");
       addKey ("dna", "DNA FASTA file");
-      addFlag ("gpipe", "Protein identifiers in the protein FASTA file have format 'gnl|<project>|<accession>'");
+    //addFlag ("gpipe", "Protein identifiers in the protein FASTA file have format 'gnl|<project>|<accession>'");
+      addFlag ("pgap", "Input files are created by PGAP");  // exclusive with --gpipe
       // Output
       addKey ("locus_tag", "Output file with matches: \"<FASTA id> <GFF id>\", where <id> is from " + strQuote (locus_tagS + "<id>") + " in the FASTA comment and from the .gff-file");
+	    version = SVN_REV;
     }
 
 
@@ -76,7 +75,11 @@ struct ThisApplication : Application
     const string protFName      = getArg ("prot");
     const string dnaFName       = getArg ("dna");
     const string locus_tagFName = getArg ("locus_tag");
-    const bool   gpipe          = getFlag ("gpipe");
+  //const bool   gpipe          = getFlag ("gpipe");
+    const bool   pgap           = getFlag ("pgap"); 
+    
+  //if (gpipe && pgapx)
+    //throw runtime_error ("Flags --gpipe and --pgapx are mutually exclusive");
     
     
     if (isRight (gffName, noFile))
@@ -84,7 +87,7 @@ struct ThisApplication : Application
     
 
     Annot::Gff gff;
-    const Annot annot (gff, gffName, ! locus_tagFName. empty ());
+    const Annot annot (gff, gffName, false, ! locus_tagFName. empty (), pgap);
     
     
     if (! protFName. empty ())
@@ -98,18 +101,21 @@ struct ThisApplication : Application
 			  LineInput f (protFName /*, 100 * 1024, 1*/);
     		Istringstream iss;
     		string line_orig;
+     		string fastaId;
 			  while (f. nextLine ())
 			    if (! f. line. empty ())
 			    	if (f. line [0] == '>')
 			    	{
 			    		line_orig = f. line;
-			    		string fastaId, gffId;
 			    		iss. reset (f. line. substr (1));
+			    		fastaId. clear ();
 		    		  iss >> fastaId;
+		    		  QC_ASSERT (! fastaId. empty ());
 		    		  // gffId
-		    			gffId = fastaId;
+		    			string gffId (fastaId);
 			    		if (! locus_tagFName. empty ())
 			    		{
+			    		#if 0
 			    		  if (gpipe)
 			    		  {
 			    		    if (! trimPrefix (gffId, "gnl|"))
@@ -120,6 +126,7 @@ struct ThisApplication : Application
   			    			gffId. erase (0, pos + 1);
 			    		  }
 			    		  else
+			    		#endif
 			    		  {
   			    			const size_t pos = f. line. find (locus_tagS);
   			    			if (pos == string::npos)
@@ -173,12 +180,13 @@ struct ThisApplication : Application
     	{
 			  LineInput f (dnaFName /*, 100 * 1024, 1*/);
     		Istringstream iss;
+    		string contigId;
 			  while (f. nextLine ())
 			    if (! f. line. empty ())
 			    	if (f. line [0] == '>')
 			    	{
-			    		string contigId;
 			    		iss. reset (f. line. substr (1));
+			    		contigId. clear ();
 		    		  iss >> contigId;
 			    		ASSERT (! contains (contigId, ' '));
 			    		if (contigId. empty ())

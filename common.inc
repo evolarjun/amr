@@ -73,7 +73,11 @@
 
 
 #define WHERE  "\"" __FILE__ "\", line " << __LINE__
-#define FUNC  std::string (__PRETTY_FUNCTION__) + ": "
+#ifdef _MSC_VER
+  #define FUNC  std::string (__FUNCSIG__) + ": "
+#else
+  #define FUNC  std::string (__PRETTY_FUNCTION__) + ": "
+#endif
 
 
 [[noreturn]] void errorThrow (const std::string &msg);
@@ -128,6 +132,10 @@
 
 
 #define PRINT(x)  cout << #x << " = " << (x) << endl;
+
+
+#define XSTR(s) STR(s)
+#define STR(s)  #s
 
 
 

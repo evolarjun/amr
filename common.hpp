@@ -37,7 +37,10 @@
 
 
 #ifdef _MSC_VER
+  #pragma warning (disable : 4061)  // enumerator ... in switch of enum ... is not explicitly handled by a case label
   #pragma warning (disable : 4290)  // C++ exception specification ignored except to indicate a function is not __declspec(nothrow)
+  #pragma warning (disable : 4365)  // conversion from 'type_1' to 'type_2', signed/unsigned mismatch (bool -> size_t)
+  #pragma warning (disable : 4503)  // decorated name length exceeded, name was truncated
   #pragma warning (disable : 4514)  // '...': unreferenced inline function has been removed
   #pragma warning (disable : 4521)  // multiple copy constructors specified
   #pragma warning (disable : 4522)  // multiple assignment operators specified
@@ -53,6 +56,11 @@
   #pragma warning (disable : 4005)  // macro redefinition
   #define _HAS_ITERATOR_DEBUGGING 0
   #pragma warning (default : 4005)  
+#endif
+
+#ifdef __APPLE__
+  #include <sys/types.h>
+  #include <sys/sysctl.h>
 #endif
 
 #include <ctime>
@@ -371,9 +379,11 @@ const size_t NO_INDEX = SIZE_MAX;
 
 inline bool isAlpha (char c)
   { return strchr ("abcdefghijklmnopqrstuvwxyz", tolower (c)); }
+  // isalpha() is locale-specific
 
 inline bool isDigit (char c)
   { return strchr ("0123456789", c); }
+  // isdigit() is locale-specific
   
 inline bool isLetter (char c)
   { return isAlpha (c) || isDigit (c) || c == '_'; }
@@ -390,6 +400,9 @@ inline bool isUpper (char c)
 inline bool isLower (char c)
   { return toLower (c) == c; }
 
+inline bool isHex (char c)
+  { return isDigit (c) || strchr ("ABCDEF", toUpper (c)); }
+
 inline bool printable (char c)
   { return between (c, ' ', (char) 127); }
   
@@ -399,6 +412,10 @@ inline bool isDelimiter (char c)
            && ! isLetter (c);
   }
  
+
+
+constexpr double NaN = numeric_limits<double>::quiet_NaN ();  
+
 
 
 /* Usage:
@@ -411,8 +428,8 @@ struct Iter : Nocopy
 private:
   T& t;
   typename T::iterator itNext;
-public:
   typename T::iterator it;
+public:
     
 
   explicit Iter (T &t_arg)
@@ -436,7 +453,7 @@ public:
   typename T::value_type* operator-> () const
     { return & const_cast <typename T::value_type&> (*it); }  // *set::iterator = const set::value_type
   typename T::value_type erase ()
-    { typename T::value_type val = *it;
+    { typename T::value_type val = move (*it);
       itNext = t. erase (it); 
       return val;
     }
@@ -497,18 +514,6 @@ public:
 
 // STL algorithms
 
-template <typename To, typename From>
-  inline void insertAll (To &to,
-                         const From &from)
-    { to. insert (to. begin (), from. begin (), from. end ()); }
-
-template <typename To, typename From>
-  inline void insertIter (To &to,
-                          const From &from)
-    { for (const auto x : from)
-        to << move (x);
-    }
-
 template <typename T>
   inline void sort (T &t)
     { std::sort (t. begin (), t. end ()); }
@@ -536,6 +541,11 @@ template <typename Key, typename Value, typename KeyParent>
 
 template <typename Key, typename Value, typename KeyParent>
   inline bool contains (const unordered_map <Key, Value> &m,
+                        const KeyParent& key)
+    { return m. find (key) != m. end (); }
+
+template <typename Key, typename KeyParent>
+  inline bool contains (const unordered_set <Key> &m,
                         const KeyParent& key)
     { return m. find (key) != m. end (); }
 
@@ -634,7 +644,32 @@ template <typename T, typename UnaryPredicate>
   inline long count_if (T &t, UnaryPredicate pred)
     { return std::count_if (t. begin (), t. end (), pred); }
 
+template <typename To, typename From>
+  inline void insertAll (To &to,
+                         const From &from)
+    { to. insert (to. begin (), from. begin (), from. end ()); }
 
+template <typename To, typename From>
+  inline void insertIter (To &to,
+                          From &&from)
+    { for (auto&& x : from)
+        to. insert (move (x));
+    }
+
+template <typename To, typename From>
+  inline void insertIter (To &to,
+                          const From &from)
+    { for (const auto& x : from)
+        to. insert (x);
+    }
+
+template <typename From, typename What>
+  inline void eraseIter (From &from,
+                         const What &what)
+    { for (const auto& x : what)
+        if (contains (from, x))
+          from. erase (x);
+    }
 
 
 template <typename T>
@@ -1010,9 +1045,9 @@ void readLine (istream &is,
                string &s);
   // Output: s
 
-string getToken (istream &is,
-                 const string &skip,
-                 const string &delimeters);
+string getColumn (istream &is,
+                  const string &skip,
+                  const string &delimeters);
   // Return: empty() <=> eof
 
 inline void pressAnyKey ()
@@ -1022,6 +1057,16 @@ inline void pressAnyKey ()
 
 inline streamsize double2decimals (double r)
   { return r ? (streamsize) max<long> (0, (long) (ceil (- log10 (fabs (r)) + 1))) : 0; }
+
+
+
+// hash
+extern hash<string> str_hash;
+extern hash<size_t> size_hash;
+constexpr size_t hash_class_max = 1000;  // PAR
+inline size_t str2hash_class (const string &s)
+  { return str_hash (s) % hash_class_max; }
+ 
 
 
 
@@ -1045,6 +1090,8 @@ public:
 	ulong get (ulong max);
     // Return: in 0 .. max - 1
     // Input: 0 < max <= max_
+	ulong get ()
+	  { return get ((ulong) max_); }
   double getProb ()
     { return (double) get ((ulong) max_) / ((double) max_ - 1); }
     // Return: [0,1]
@@ -1085,6 +1132,8 @@ template <typename T>
       {}
    ~Keep () 
       { *ptr = t; }
+    const T& get () const
+      { return t; }
   };
 
 
@@ -1371,7 +1420,7 @@ public:
 	  {
 	  #ifndef NDEBUG
 	    if (index >= P::size ())
-	      throw range_error ("Vector assignment to index = " + toString (index) + ", but size = " + toString (P::size ()));
+	      throw range_error ("Vector assignment to index = " + to_string (index) + ", but size = " + to_string (P::size ()));
 	  #endif
 	    return P::operator[] (index);
 	  }
@@ -1379,7 +1428,7 @@ public:
 	  {
 	  #ifndef NDEBUG
 	    if (index >= P::size ())
-	      throw range_error ("Vector reading of index = " + toString (index) + ", but size = " + toString (P::size ()));
+	      throw range_error ("Vector reading of index = " + to_string (index) + ", but size = " + to_string (P::size ()));
 	  #endif
 	    return P::operator[] (index);
 	  }
@@ -1475,14 +1524,16 @@ public:
     	{ const size_t j = P::size () - 1 - i;
     		if (i >= j)
     			break;
-    	  swap ((*this) [i], (*this) [j]);
+    	  std::swap ((*this) [i], (*this) [j]);
     	}
     	searchSorted = false;
     }
+  const T& getRandom (Rand &rand) const
+    { return (*this) [rand. get (P::size ())]; }
   void randomOrder ()
 		{ Rand rand (seed_global);
 			for (T &t : *this)
-	      swap (t, (*this) [(size_t) rand. get ((ulong) P::size ())]);
+	      std::swap (t, (*this) [(size_t) rand. get ((ulong) P::size ())]);
     	searchSorted = false;
 		}
   T pop (size_t n = 1)
@@ -1553,7 +1604,7 @@ public:
       FOR_START (size_t, i, 1, P::size ())
 		    FOR_REV (size_t, j, i)
 		      if ((*this) [j + 1] > (*this) [j])
-        	  swap ((*this) [j], (*this) [j + 1]);
+        	  std::swap ((*this) [j], (*this) [j + 1]);
 		      else
 		      	break;
     	searchSorted = true;
@@ -1727,6 +1778,18 @@ public:
       return P::size () < other. size ();
     }
 };
+
+
+
+template <typename T>
+  Vector<T> diff2vec (const unordered_set<T> &a,
+                      const unordered_set<T> &b)
+  { Vector<T> v;  v. reserve (a. size ());
+    for (const T& t : a)
+      if (! contains (b, t))
+        v << t;
+    return v;
+  }  
 
 
 
@@ -2252,6 +2315,91 @@ template <typename T, typename U /* : T */>
 
 
 
+template <typename T>  
+struct RandomSet
+{
+private:
+  Vector<T> vec;
+  unordered_map<T,size_t/*index in vec*/> um;
+  // Same elements
+public:
+  
+  RandomSet () = default;
+  void reset (size_t num)
+    { vec. clear ();  vec. reserve (num);
+      um.  clear ();  um. rehash (num);
+    }
+  void qc () const
+    { if (! qc_on)
+        return;
+      if (vec. size () != um. size ())
+        throw logic_error ("RandomSet: qc");
+    }
+    
+  // Time: O(1)
+  bool empty () const
+    { return vec. empty (); }
+  size_t size () const
+    { return vec. size (); }
+  bool insert (const T &t)
+    { if (contains (um, t))
+        return false;
+      um [t] = vec. size ();;
+      vec << t;
+      return true;
+    }
+  bool erase (const T &t)
+    { if (vec. empty ())
+        return false;
+      const auto it = um. find (t);
+      if (it == um. end ())
+        return false;
+      um [vec. back ()] = it->second;
+      vec [it->second] = vec. back ();
+      vec. pop_back ();
+      um. erase (t);
+      return true;
+    }
+  const Vector<T>& getVec () const
+    { return vec; }
+    // For a random access
+};
+  
+
+
+template <typename T>
+struct Enumerate
+{
+  Vector<T> num2elem;
+private:
+  unordered_map<T,size_t> elem2num;
+public:
+  
+  explicit Enumerate (size_t n)
+    { num2elem. reserve (n);
+      elem2num. rehash (n);
+    }
+    
+  size_t size () const
+    { return num2elem. size (); }
+  size_t find (const T &t) const
+    { if (const size_t* num = Common_sp::findPtr (elem2num, t))
+        return *num;
+      return NO_INDEX;
+    }
+  size_t add (const T &t)
+    { size_t num = find (t);
+      if (num == NO_INDEX)
+      { num2elem << t;
+        num = num2elem. size () - 1;
+        elem2num [t] = num;
+      }
+      return num;
+    }
+};
+
+
+
 struct Progress : Nocopy
 {
 private:
@@ -2447,43 +2595,20 @@ public:
     // Postcondition: eol
 	  
 
-  struct Error : runtime_error
-    { Error (const CharInput &in,
-		         const string &what_arg,
-		         bool expected = true) 
-			  : runtime_error ("Error at line " + toString (in. lineNum + 1) 
-		                     + ", pos. " + toString (in. charNum + 1)
-		                     + (what_arg. empty () ? string () : (": " + what_arg + ifS (expected, " is expected")))
-		                    )
-	      {}
-	  };
+  struct Error : runtime_error 
+  {
+    explicit Error (const string &what_arg)
+      : runtime_error (what_arg)
+      {}
+  };
+  [[noreturn]] void error (const string &what,
+		                       bool expected = true) const
+		{ throw Error ("Error at line " + to_string (lineNum + 1) + ", pos. " + to_string (charNum + 1)
+		               + (what. empty () ? string () : (": " + what + ifS (expected, " is expected")))
+		              );
+		}
 };
 	
-
-
-struct PairFile : Root
-{
-private:
-	LineInput f;
-	Istringstream iss;
-public:
-  bool sameAllowed {false};
-	bool orderNames {false};
-  	// true => name1 < name2
-	string name1;
-	string name2;
-	
-	PairFile (const string &fName,
-	          bool sameAllowed_arg,
-	          bool orderNames_arg)
-	  : f (fName, 100 * 1024, 1000)  // PAR
-	  , sameAllowed (sameAllowed_arg)
-	  , orderNames (orderNames_arg)
-	  {}
-	  
-	bool next ();
-};
-
 
 
 struct Token : Root
@@ -2500,7 +2625,7 @@ struct Token : Root
 	  // eText => embracing quote's are removed
 	char quote {'\0'};
 	  // eText => '\'' or '\"'
-	int n {0};
+	long long n {0};
 	double d {0.0};
   // Valid if eDouble
 	streamsize decimals {0};
@@ -2521,11 +2646,11 @@ struct Token : Root
 	  , name (name_arg)
 	  , quote (quote_arg)
 	  {}
-	explicit Token (const int n_arg)
+	explicit Token (long long n_arg)
 	  : type (eInteger)
 	  , n (n_arg)
 	  {}
-	explicit Token (const double d_arg)
+	explicit Token (double d_arg)
 	  : type (eDouble)
 	  , d (d_arg)
 	  {}
@@ -2539,36 +2664,12 @@ struct Token : Root
 	       Type expected)
     { readInput (in);
     	if (empty ())
- 			  throw CharInput::Error (in, "No token", false); 
+ 			  in. error ("No token", false); 
     	if (type != expected)
- 			  throw CharInput::Error (in, type2str (type)); 
-    }
-	Token (CharInput &in,
-	       const string &expected)
-    { readInput (in);
-    	if (! isNameText (expected))
- 			  throw CharInput::Error (in, type2str (eName) + " or " + type2str (eName) + " " + strQuote (expected)); 
-    }
-	Token (CharInput &in,
-	       int expected)
-    { readInput (in);
-    	if (! isInteger (expected))
- 			  throw CharInput::Error (in, type2str (eInteger) + " " + toString (expected)); 
-    }
-	Token (CharInput &in,
-	       double expected)
-    { readInput (in);
-    	if (! isDouble (expected))
- 			  throw CharInput::Error (in, type2str (eDouble) + " " + toString (expected)); 
-    }
-	Token (CharInput &in,
-	       char expected)
-    { readInput (in);
-    	if (! isDelimiter (expected))
- 			  throw CharInput::Error (in, type2str (eDelimiter) + " " + expected); 
+ 			  in. error (type2str (type)); 
     }
 private:
-	void readInput (CharInput &in);
+	void readInput (CharInput &in);  
 public:
 	void qc () const override;
 	void saveText (ostream &os) const override;
@@ -2590,14 +2691,127 @@ public:
 	  { return ! empty () && type == eName && name == s; }
 	bool isNameText (const string &s) const
 	  { return ! empty () && (type == eName || type == eText) && name == s; }
-	bool isInteger (int n_arg) const
+	bool isInteger (long long n_arg) const
 	  { return ! empty () && type == eInteger && n == n_arg; }
 	bool isDouble (double d_arg) const
 	  { return ! empty () && type == eDouble && d == d_arg; }
 	bool isDelimiter (char c) const
 	  { return ! empty () && type == eDelimiter && name [0] == c; }
+	  
+	bool operator== (const Token &other) const
+	  { if (type != other. type)
+	      return false;
+	    switch (type)
+	    { case eName:
+	      case eText:
+	      case eDelimiter: return name == other. name;
+	      case eInteger:   return n    == other. n;
+	      case eDouble:    return d    == other. d;
+	    }
+	    return false;
+	  }
+	bool operator< (const Token &other) const;
 };
 
+
+
+struct TokenInput : Root
+{
+private:
+  CharInput ci;
+  const char commentStart {'\0'};
+  Token last;
+public:
+
+
+  explicit TokenInput (const string &fName,
+                       char commentStart_arg = '\0',
+                	     size_t bufSize = 100 * 1024,
+                       uint displayPeriod = 0)
+    : ci (fName, bufSize, displayPeriod)
+    , commentStart (commentStart_arg)
+    {}
+  explicit TokenInput (istream &is_arg,
+                       char commentStart_arg = '\0',
+                       uint displayPeriod = 0)
+    : ci (is_arg, displayPeriod)
+    , commentStart (commentStart_arg)
+    {}
+
+
+  [[noreturn]] void error (const string &what,
+		                       bool expected = true) const
+		{ ci. error (what, expected); }
+  Token get ()
+    // Return: empty() <=> EOF
+    { const Token last_ (last);
+      last = Token ();
+      if (! last_. empty ())
+        return last_;
+      for (;;)
+      { Token t (ci);
+        if (t. empty ())
+          break;
+        if (! t. isDelimiter (commentStart))
+          return t;
+        ci. getLine ();
+      }
+      return Token ();
+    }
+	void get (const string &expected)
+    { const Token t (get ());
+    	if (! t. isNameText (expected))
+   			ci. error (Token::type2str (Token::eName) + " " + strQuote (expected)); 
+    }
+	void get (int expected)
+    { const Token t (get ());
+    	if (! t. isInteger (expected))
+  			ci. error (Token::type2str (Token::eInteger) + " " + to_string (expected)); 
+    }
+	void get (double expected)
+    { const Token t (get ());
+    	if (! t. isDouble (expected))
+   			ci. error (Token::type2str (Token::eDouble) + " " + toString (expected)); 
+    }
+	void get (char expected)
+    { const Token t (get ());
+    	if (! t. isDelimiter (expected))
+   			ci. error (Token::type2str (Token::eDelimiter) + " " + strQuote (toString (expected))); 
+    }
+  void setLast (Token &&t)
+    { if (t. empty ())
+        throw logic_error ("TokenInput::setLast()");
+      last = move (t);
+    }
+};
+
+
+
+struct PairFile : Root
+{
+private:
+	LineInput f;
+	Istringstream iss;
+public:
+  bool sameAllowed {false};
+	bool orderNames {false};
+  	// true => name1 < name2
+	string name1;
+	string name2;
+	
+
+	PairFile (const string &fName,
+	          bool sameAllowed_arg,
+	          bool orderNames_arg,
+	          uint displayPeriod = 1000)
+	  : f (fName, 100 * 1024, displayPeriod) 
+	  , sameAllowed (sameAllowed_arg)
+	  , orderNames (orderNames_arg)
+	  {}
+
+	  
+	bool next ();
+};
 
 
 
@@ -2623,10 +2837,12 @@ struct OFStream : ofstream
 struct Stderr : Singleton<Stderr>
 {
   bool quiet {false};
+
   
   explicit Stderr (bool quiet_arg)
     : quiet (quiet_arg)
     {}
+
     
   template <typename T>
     Stderr& operator<< (const T& t) 
@@ -2745,7 +2961,7 @@ protected:
 public:    
   string getString () const;
     // Requires: JsonString
-  int getInt () const;
+  long long getInt () const;
     // Requires: JsonInt
   double getDouble () const;
     // Requires: JsonDouble
@@ -2794,9 +3010,9 @@ struct JsonString : Json
 
 struct JsonInt : Json
 {
-  int n {0};
+  long long n {0};
   
-  JsonInt (int n_arg,
+  JsonInt (long long n_arg,
            JsonContainer* parent,
            const string& name = noString)
     : Json (parent, name)
@@ -2814,7 +3030,7 @@ struct JsonDouble : Json
 {
   double n {0.0};
   streamsize decimals {0};
-  bool scientfiic {false};
+  bool scientific {false};
 
   JsonDouble (double n_arg,
               streamsize decimals_arg,
@@ -2888,6 +3104,9 @@ public:
 
   const JsonArray* asJsonArray () const final
     { return this; }
+    
+  size_t size () const
+    { return data. size (); }
 };
 
 
@@ -2919,6 +3138,13 @@ public:
 
   const JsonMap* asJsonMap () const final
     { return this; }
+    
+  StringVector getKeys () const
+    { StringVector keys;  keys. reserve (data. size ());
+      for (const auto& it : data)
+        keys << it. first;
+      return keys;
+    }
 };
 
 
@@ -3010,7 +3236,7 @@ public:
     { if (i == n)
         return false;
       i++;
-      item = toString (i);
+      item = to_string (i);
       prog (item);
       return true;
     }
@@ -3021,13 +3247,113 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
+struct SoftwareVersion : Root
+{
+  uint major {0};
+  uint minor {0};
+  uint patch {0};
+  
+
+  explicit SoftwareVersion (const string &fName)
+    { LineInput f (fName);
+      string s (f. getString ());
+      init (move (s), false);
+    }
+  explicit SoftwareVersion (istream &is,
+                            bool minorOnly = false)
+    { string s;
+      is >> s;
+      init (move (s), minorOnly);
+    }
+private:
+  void init (string &&s,
+             bool minorOnly)
+    { try 
+      { major = str2<uint> (findSplit (s, '.'));
+        if (minorOnly)
+          minor = str2<uint> (s);
+        else
+        { minor = str2<uint> (findSplit (s, '.'));
+          patch = str2<uint> (s);
+        }
+      } catch (...) { throw runtime_error ("Cannot read software version"); }
+    }
+public:
+  void saveText (ostream &os) const override
+    { os << major << '.' << minor << '.' << patch; }   
+    
+    
+  bool operator< (const SoftwareVersion &other) const;
+  bool operator== (const SoftwareVersion &other) const
+    { return    major == other. major
+             && minor == other. minor
+             && patch == other. patch;
+    }
+  bool operator<= (const SoftwareVersion &other) const
+    { return operator< (other) || operator== (other); }
+    
+  string getMinor () const
+    { return to_string (major) + "." + to_string (minor); }
+};
+  
+  
+
+struct DataVersion : Root
+{
+  uint year {0};
+  uint month {0};
+  uint day {0};
+  uint num {0};
+  
+
+  explicit DataVersion (const string &fName)
+    { LineInput f (fName);
+      string s (f. getString ());
+      init (move (s));
+    }
+  explicit DataVersion (istream &is)
+    { string s;
+      is >> s;
+      init (move (s));
+    }
+private:
+  void init (string &&s)
+    { try
+      { year  = str2<uint> (findSplit (s, '-'));
+        month = str2<uint> (findSplit (s, '-'));
+        day   = str2<uint> (findSplit (s, '.'));
+        num   = str2<uint> (s);
+      } catch (...) { throw runtime_error ("Cannot read data version"); }
+    }
+public:
+  void saveText (ostream &os) const override
+    { os << year 
+         << '-' << std::setfill ('0') << std::setw (2) << month 
+         << '-' << std::setfill ('0') << std::setw (2) << day 
+         << '.' << num; 
+    }   
+    
+    
+  bool operator< (const DataVersion &other) const;
+  bool operator== (const DataVersion &other) const
+    { return    year  == other. year
+             && month == other. month
+             && day   == other. day
+             && num   == other. num;
+    }
+  bool operator<= (const DataVersion &other) const
+    { return operator< (other) || operator== (other); }
+};
+  
+  
+
 struct Application : Singleton<Application>, Root
 // Usage: int main (argc, argv) { ThisApplication /*:Application*/ app; return app. run (argc, argv); }
 {  
   const string description;
   const bool needsArg;
   const bool gnu;
-  string version {"1"};
+  string version {"1.0.0"};
   static constexpr const char* helpS {"help"};
   static constexpr const char* versionS {"version"};
   
@@ -3138,23 +3464,7 @@ protected:
   void setRequiredGroup (const string &keyName,
                          const string &requiredGroup);
 private:
-	void addDefaultArgs ()
-	  { if (gnu)
-    	{ addKey ("threads", "Max. number of threads", "1", '\0', "THREADS");
-    	  addFlag ("debug", "Integrity checks");
-      }
-    	else
-    	{ addFlag ("qc", "Integrity checks (quality control)");
-	      addKey ("verbose", "Level of verbosity", "0");
-	      addFlag ("noprogress", "Turn off progress printout");
-	      addFlag ("profile", "Use chronometers to profile");
-	      addKey ("seed", "Positive integer seed for random number generator", "1");
-	      addKey ("threads", "Max. number of threads", "1");
-	      addKey ("json", "Output file in Json format");
-	      addKey ("log", "Error log file, appended");
-	      addFlag ("sigpipe", "Exit normally on SIGPIPE");
-	    }
-	  }
+	void addDefaultArgs ();
 	void qc () const final;
 	Key* getKey (const string &keyName) const;
 	  // Return: !nullptr
@@ -3201,6 +3511,7 @@ private:
 
 
 
+#ifndef _MSC_VER
 struct ShellApplication : Application
 // Requires: SHELL=bash
 {
@@ -3208,6 +3519,7 @@ struct ShellApplication : Application
   const bool useTmp;
   string tmp;
   string execDir;
+    // Ends with '/'
   mutable map<string,string> prog2dir;
   
 
@@ -3241,6 +3553,7 @@ protected:
     // Return: directory + progName + ' '
     // Requires: After findProg(progName)
 };
+#endif
 
 
 

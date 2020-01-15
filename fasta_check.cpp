@@ -45,7 +45,6 @@ namespace
 
 
 
-
 struct ThisApplication : Application
 {
   ThisApplication ()
@@ -55,6 +54,7 @@ struct ThisApplication : Application
       addFlag ("aa", "Amino acid sequenes, otherwise nucleotide");
       addFlag ("hyphen", "Hyphens are allowed");
       addKey ("len", "Output file with lines: <sequence id> <length>");
+	    version = SVN_REV;
     }
 
 
@@ -140,7 +140,7 @@ struct ThisApplication : Application
   	  *lenF << ids. back () << '\t' << seqSize << endl;
 
 	  if (! lines)
-	  	throw runtime_error ("Empty file");
+	  	throw runtime_error ("Empty file"); 
 	  if (! first && seqSize == 0)
   		throw runtime_error ("Empty sequence");
   	if (aa && (double) nuc / (double) allSize > 0.9)  // PAR

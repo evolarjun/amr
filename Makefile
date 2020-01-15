@@ -30,20 +30,24 @@ else
 endif
 SVNREV := -D'SVN_REV="$(VERSION_STRING)"'
 
+# make it possible to hard define a database directory
+
 # Define default paths
 PREFIX ?= /usr/local
 INSTALL=install
+ifneq '$(DEFAULT_DB_DIR)' ''
+	DBDIR := -D'DEFAULT_DB_DIR="$(DEFAULT_DB_DIR)"'
+endif
 
-CPPFLAGS = -std=gnu++11 -pthread -malign-double -fno-math-errno -O3 $(SVNREV)
-  -Wno-error=misleading-indentation -Wno-nonnull-compare 
+CPPFLAGS = -std=gnu++11 -pthread -malign-double -fno-math-errno -O3 
 
 CXX=g++
-COMPILE.cpp= $(CXX) $(CPPFLAGS) $(SVNREV) -c 
+COMPILE.cpp= $(CXX) $(CPPFLAGS) $(SVNREV) $(DBDIR) -c 
 
 
 .PHONY: all clean install release
 
-BINARIES= amr_report amrfinder amrfinder_update fasta_check fasta2parts gff_check point_mut 
+BINARIES= amr_report amrfinder amrfinder_update fasta_check fasta2parts gff_check dna_mutation 
 
 all:	$(BINARIES)
 
@@ -53,18 +57,19 @@ release: clean
 
 common.o:	common.hpp common.inc
 gff.o: gff.hpp common.hpp common.inc
+alignment.o:	alignment.hpp alignment.hpp common.inc
 
-amr_report.o:	common.hpp common.inc gff.hpp
-amr_reportOBJS=amr_report.o common.o gff.o
+amr_report.o:	common.hpp common.inc gff.hpp alignment.hpp
+amr_reportOBJS=amr_report.o common.o gff.o alignment.o
 amr_report:	$(amr_reportOBJS)
 	$(CXX) -o $@ $(amr_reportOBJS)
 
-amrfinder.o:  common.hpp common.inc amrfinder.inc
+amrfinder.o:  common.hpp common.inc 
 amrfinderOBJS=amrfinder.o common.o
 amrfinder:	$(amrfinderOBJS)
-	$(CXX) -o $@ $(amrfinderOBJS) -pthread 
+	$(CXX) -o $@ $(amrfinderOBJS) -pthread $(DBDIR)
 
-amrfinder_update.o:  common.hpp common.inc amrfinder.inc
+amrfinder_update.o:  common.hpp common.inc 
 amrfinder_updateOBJS=amrfinder_update.o common.o
 amrfinder_update:      $(amrfinder_updateOBJS)
 	$(CXX) -o $@ $(amrfinder_updateOBJS) -lcurl
@@ -84,10 +89,10 @@ gff_checkOBJS=gff_check.o common.o gff.o
 gff_check:	$(gff_checkOBJS)
 	$(CXX) -o $@ $(gff_checkOBJS)
 
-point_mut.o:	common.hpp common.inc 
-point_mutOBJS=point_mut.o common.o
-point_mut:	$(point_mutOBJS)
-	$(CXX) -o $@ $(point_mutOBJS)
+dna_mutation.o:	common.hpp common.inc alignment.hpp
+dna_mutationOBJS=dna_mutation.o common.o alignment.o
+dna_mutation:	$(dna_mutationOBJS)
+	$(CXX) -o $@ $(dna_mutationOBJS)
 
 
 clean:
@@ -140,19 +145,17 @@ dist:
 	rmdir $(DISTDIR)
 
 
-test:
-	curl -O https://raw.githubusercontent.com/ncbi/amr/v3b/test_dna.fa \
-		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.fa \
-		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.gff \
-		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_both.expected \
-		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_dna.expected \
-		-O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.expected
-	amrfinder --plus -p test_prot.fa -g test_prot.gff -O Campylobacter > test_prot.got
+test : $(DISTFILES) Makefile *.cpp *.hpp *.inc test_dna.fa test_prot.fa test_prot.gff test_dna.fa test_dna.expected test_prot.expected test_both.expected
+	# curl -O https://raw.githubusercontent.com/ncbi/amr/master/test_dna.fa \
+	# 	-O https://raw.githubusercontent.com/ncbi/amr/master/test_prot.fa \
+	# 	-O https://raw.githubusercontent.com/ncbi/amr/master/test_prot.gff \
+	# 	-O https://raw.githubusercontent.com/ncbi/amr/master/test_both.expected \
+	# 	-O https://raw.githubusercontent.com/ncbi/amr/master/test_dna.expected \
+	# 	-O https://raw.githubusercontent.com/ncbi/amr/master/test_prot.expected
+	./amrfinder --plus -p test_prot.fa -g test_prot.gff -O Escherichia > test_prot.got
 	diff test_prot.expected test_prot.got
-	amrfinder --plus -n test_dna.fa -O Campylobacter > test_dna.got
+	./amrfinder --plus -n test_dna.fa -O Escherichia > test_dna.got
 	diff test_dna.expected test_dna.got
-	amrfinder --plus -n test_dna.fa -p test_prot.fa -g test_prot.gff -O Campylobacter > test_both.got
-	diff test_both.got test_both.expected
+	./amrfinder --plus -n test_dna.fa -p test_prot.fa -g test_prot.gff -O Escherichia > test_both.got
+	diff test_both.expected test_both.got
 
-
-     -O https://raw.githubusercontent.com/ncbi/amr/v3b/test_prot.expected

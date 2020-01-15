@@ -84,7 +84,7 @@ string getCommandLine ()
                      || contains (s, '<')
                      || contains (s, '>')
                      || contains (s, '~')
-                      || contains (s, '\'')
+                     || contains (s, '\'')
                      || contains (s, '"')
                      || contains (s, '\\');
     if (! commandLine. empty ())
@@ -115,13 +115,14 @@ inline thread::id get_thread_id ()
 thread::id main_thread_id = get_thread_id ();
   
 bool isMainThread ()
-  { return get_thread_id () == main_thread_id; }
+  { return threads_max == 1 || get_thread_id () == main_thread_id; }
 
 
 bool Chronometer::enabled = false;
 
 
 
+#ifndef _MSC_VER
 namespace 
 {
 
@@ -141,6 +142,7 @@ void segmFaultHandler (int /*sig_num*/)
 }
 
 }
+#endif
 
 
 
@@ -148,8 +150,10 @@ bool initCommon ()
 {
   MODULE_INIT
 
+#ifndef _MSC_VER
   signal (SIGSEGV, segmFaultHandler);  
   signal (SIGPIPE, sigpipe_handler);
+#endif
         
 #ifdef _MSC_VER
   #pragma warning (disable : 4127)
@@ -162,6 +166,8 @@ bool initCommon ()
 
   static_assert (SIZE_MAX == std::numeric_limits<size_t>::max (), "SIZE_MAX is correct");
 
+  static_assert (sizeof (size_t) == 8, "Size of size_t must be 8 bytes");
+    
   return true;
 }
 
@@ -181,8 +187,9 @@ namespace
 	
 	// time ??
 #ifndef _MSC_VER
-	const char* hostname = getenv ("HOSTNAME");
-	const char* pwd = getenv ("PWD");
+	const char* hostname = getenv ("HOSTNAME");//const char* shell    = getenv ("SHELL");
+	const char* shell    = getenv ("SHELL");	
+	const char* pwd      = getenv ("PWD");
 #endif
   const string errorS ("*** ERROR ***");
   if (isLeft (msg, errorS))  // msg already is the result of errorExit()
@@ -193,6 +200,7 @@ namespace
         << msg << endl << endl
       #ifndef _MSC_VER
   	    << "HOSTNAME: " << (hostname ? hostname : "?") << endl
+  	    << "SHELL: " << (shell ? shell : "?") << endl
   	    << "PWD: " << (pwd ? pwd : "?") << endl
       #endif
   	    << "Progam name:  " << programName << endl
@@ -806,13 +814,18 @@ Dir::Dir (const string &name)
 
 streampos getFileSize (const string &fName)
 {
-  try 
-  {
-    ifstream f (fName, ios::ate | ios::binary);
-    return f. tellg (); 
-  }
-  catch (const exception &e)
-    { throw runtime_error ("Cannot open file " + strQuote (fName) + "\n" + e. what ()); }
+  static_assert (sizeof (streampos) >= sizeof (long long), "streampos size");
+
+  ifstream f (fName, ios::in);
+  if (! f. good ())
+    throw runtime_error ("Cannot open file " + strQuote (fName));
+
+  const streampos start = f. tellg ();   
+  f. seekg (0, ios::end);    
+  if (f. tellg () < start)
+    throw runtime_error ("Bad file " + strQuote (fName));
+    
+  return f. tellg () - start; 
 }
 
 
@@ -908,9 +921,9 @@ void readLine (istream &is,
 
 
 
-string getToken (istream &is,
-                 const string &skip,
-                 const string &delimeters)
+string getColumn (istream &is,
+                  const string &skip,
+                  const string &delimeters)
 {
   // Skipping skip
   for (;;)
@@ -950,6 +963,12 @@ string getToken (istream &is,
 }
 
  
+
+
+hash<string> str_hash;
+hash<size_t> size_hash;
+
+
 
 
 // Rand
@@ -1075,7 +1094,7 @@ void exec (const string &cmd,
   if (verbose ())
   	cout << cmd << endl;
   	
-	const int status = system (cmd. c_str ());
+	const int status = system (cmd. c_str ());  // pipefail's are not caught
 	if (status)
 	{
 	  if (! logFName. empty ())
@@ -1083,7 +1102,7 @@ void exec (const string &cmd,
 	    LineInput f (logFName);
 	    throw runtime_error (f. getString ());
 	  }
-		throw runtime_error ("Command failed:\n" + cmd + "\nstatus = " + toString (status));		
+		throw runtime_error ("Command failed:\n" + cmd + "\nstatus = " + to_string (status));		
 	}
 }
 
@@ -1330,7 +1349,7 @@ bool LineInput::nextLine ()
   }
   catch (const exception &e)
   {
-    throw runtime_error ("Reading line " + toString (lineNum) + ":\n" + line + "\n" + e. what ());
+    throw runtime_error ("Reading line " + to_string (lineNum) + ":\n" + line + "\n" + e. what ());
   }
 }
 
@@ -1376,24 +1395,34 @@ char CharInput::get ()
 { 
   ASSERT (is);
 
-  ungot = false;
-  
 	const char c = (char) is->get ();
 
 	eof = is->eof ();
 	ASSERT (eof == (c == (char) EOF));
 
-	if (eol)
-	{ 
-	  lineNum++;
-		charNum = 0;
-		prog ();
+  if (ungot)
+  {
+    ungot = false;
+	  charNum++;
   }
   else
-	  charNum++;
+  	if (eol)
+  	{ 
+  	  lineNum++;
+  		charNum = 0;
+  		prog ();
+    }
+    else
+  	  charNum++;
 
 	eol = (eof || c == '\n');
-
+	
+#if 0
+	PRINT (c);
+	PRINT (lineNum);
+	PRINT (charNum);
+#endif
+	
 	return /*eof ? (char) EOF :*/ c;
 }
 
@@ -1405,7 +1434,7 @@ void CharInput::unget ()
 	ASSERT (! ungot);
 	
 	is->unget (); 
-	charNum--;
+	charNum--;  // May be (uint) (-1)
 	ungot = true;
 }
 
@@ -1424,30 +1453,6 @@ string CharInput::getLine ()
   return s;
 }
 
-
-
-
-// PairFile
-
-bool PairFile::next ()
-{ 
-  if (! f. nextLine ())
-	  return false;
-	  
-  iss. reset (f. line);
-  name2. clear ();
-  iss >> name1 >> name2;
-  
-  if (name2. empty ())
-  	throw runtime_error ("No pair: " + strQuote (name1) + " - " + strQuote (name2));
-  if (! sameAllowed && name1 == name2)
-  	throw runtime_error ("Same name: " + name1);
-  	
-  if (orderNames && name1 > name2)
-  	swap (name1, name2);
-  	
-  return true;
-}
 
 
 
@@ -1478,9 +1483,9 @@ void Token::readInput (CharInput &in)
 		{ 
 			c = in. get (); 
 			if (in. eof)
-		    throw CharInput::Error (in, "Text is not finished: end of file", false);
+		    in. error ("Text is not finished: end of file", false);
 			if (in. eol)
-		  //throw CharInput::Error (in, "ending quote", false);
+		  //in. error ("ending quote", false);
 		    continue;
 			if (c == quote)
 				break;
@@ -1495,6 +1500,8 @@ void Token::readInput (CharInput &in)
 		           || c == 'e'
 		           || c == 'E'
 		           || c == '-'
+		           || c == 'x'
+		           || isHex (c)
 		          )
 		      )
 		{ 
@@ -1505,7 +1512,12 @@ void Token::readInput (CharInput &in)
 			in. unget ();
 	  if (name == "-")
 	    type = eDelimiter;
-	  else
+	  else if (isLeft (name, "0x"))
+	  {
+   		type = eInteger;
+ 		  n = (long long) std::stoull (name. substr (2), nullptr, 16); 
+    }
+    else
 	  {
   	  strLower (name);
   	  if (   contains (name, '.') 
@@ -1532,7 +1544,7 @@ void Token::readInput (CharInput &in)
   	  else
   	  {
     		type = eInteger;
-  		  n = str2<int> (name);
+ 		    n = str2<long long> (name);
   		}
   	}
 	}
@@ -1553,7 +1565,7 @@ void Token::readInput (CharInput &in)
 		name = c;
 	}	
 	else
-	  throw CharInput::Error (in, "Unknown token starting with ASCII " + toString ((int) c), false);
+	  in. error ("Unknown token starting with ASCII " + to_string ((int) c), false);
 	    
 	ASSERT (! empty ());
 	qc ();
@@ -1561,7 +1573,7 @@ void Token::readInput (CharInput &in)
   if (verbose ())
   {
   	cout << type2str (type) << ' ';  
-  	cout << *this << endl;
+  	cout << *this << ' ' << charNum << endl;
   }
 }
 
@@ -1618,6 +1630,23 @@ void Token::saveText (ostream &os) const
 
 
 
+bool Token::operator< (const Token &other) const
+{
+  LESS_PART (*this, other, type);
+  switch (type)
+  { 
+    case eName:
+    case eText:
+    case eDelimiter: LESS_PART (*this, other, name); break;
+    case eInteger:   LESS_PART (*this, other, n);    break; 
+    case eDouble:    LESS_PART (*this, other, d);    break;
+  }  
+  return false;
+}
+
+
+
+
 // OFStream
 
 void OFStream::open (const string &dirName,
@@ -1638,6 +1667,31 @@ void OFStream::open (const string &dirName,
 
 	if (! good ())
 	  throw runtime_error ("Cannot create file " + strQuote (pathName));
+}
+
+
+
+
+// PairFile
+
+bool PairFile::next ()
+{ 
+  if (! f. nextLine ())
+	  return false;
+	  
+  iss. reset (f. line);
+  name2. clear ();
+  iss >> name1 >> name2;
+  
+  if (name2. empty ())
+  	throw runtime_error ("No pair: " + strQuote (name1) + " - " + strQuote (name2));
+  if (! sameAllowed && name1 == name2)
+  	throw runtime_error ("Same name: " + name1);
+  	
+  if (orderNames && name1 > name2)
+  	swap (name1, name2);
+  	
+  return true;
 }
 
 
@@ -1742,10 +1796,10 @@ void Json::parse (CharInput& in,
       {
         case '{': new JsonMap   (in, parent, name); break;
         case '[': new JsonArray (in, parent, name); break;
-        default: throw CharInput::Error (in, "Bad delimiter", false);
+        default: in. error ("Bad delimiter", false);
       }
       break;
-    default: throw CharInput::Error (in, "Bad token", false);
+    default: in. error ("Bad token", false);
   }
 }
 
@@ -1763,7 +1817,7 @@ string Json::getString () const
 
 
 
-int Json::getInt () const
+long long Json::getInt () const
 { 
   const auto* this_ = this;
   if (! this_ || asJsonNull ())
@@ -1865,7 +1919,7 @@ JsonArray::JsonArray (CharInput& in,
     if (! first)
     {
       if (! token. isDelimiter (','))
-        throw CharInput::Error (in, "\',\'");
+        in. error ("\',\'");
       token = Token (in);
     }
     parse (in, token, this, string());
@@ -1907,7 +1961,7 @@ JsonMap::JsonMap (const string &fName)
   CharInput in (fName);
   const Token token (in);
   if (! token. isDelimiter ('{'))
-    throw CharInput::Error (in, "Json file " + strQuote (fName) + ": text should start with '{'", false);
+    in. error ("Json file " + strQuote (fName) + ": text should start with '{'", false);
   parse (in);
 }
 
@@ -1926,17 +1980,17 @@ void JsonMap::parse (CharInput& in)
     if (! first)
     {
       if (! token. isDelimiter (','))
-        throw CharInput::Error (in, "\',\'");
+        in. error ("\',\'");
       token = Token (in);
     }
     if (   token. type != Token::eName
         && token. type != Token::eText
        )
-      throw CharInput::Error (in, "name or text");
+      in. error ("name or text");
     string name (token. name);
     const Token colon (in);
     if (! colon. isDelimiter (':'))
-      throw CharInput::Error (in, "\':\'");
+      in. error ("\':\'");
     token = Token (in);
     Json::parse (in, token, this, name);
     first = false;
@@ -2044,6 +2098,33 @@ bool FileItemGenerator::next (string &item)
   
 	return true;
 }    
+
+
+
+
+// SoftwareVersion
+
+bool SoftwareVersion::operator< (const SoftwareVersion &other) const
+{ 
+  LESS_PART (*this, other, major);
+  LESS_PART (*this, other, minor);
+  LESS_PART (*this, other, patch);
+  return false;
+}
+
+
+
+
+// DataVersion
+
+bool DataVersion::operator< (const DataVersion &other) const
+{ 
+  LESS_PART (*this, other, year);
+  LESS_PART (*this, other, month);
+  LESS_PART (*this, other, day);
+  LESS_PART (*this, other, num);
+  return false;
+}
 
 
 
@@ -2221,6 +2302,32 @@ void Application::setRequiredGroup (const string &keyName,
 
 
 
+void Application::addDefaultArgs ()
+{ 
+  if (gnu)
+	{ 
+	  addKey ("threads", "Max. number of threads", "1", '\0', "THREADS");
+	  addFlag ("debug", "Integrity checks");
+    addKey ("log", "Error log file, appended", "", '\0', "LOG");
+  }
+	else
+	{ 
+	  addFlag ("qc", "Integrity checks (quality control)");
+    addKey ("verbose", "Level of verbosity", "0");
+    addFlag ("noprogress", "Turn off progress printout");
+    addFlag ("profile", "Use chronometers to profile");
+    addKey ("seed", "Positive integer seed for random number generator", "1");
+    addKey ("threads", "Max. number of threads", "1");
+    addKey ("json", "Output file in Json format");
+    addKey ("log", "Error log file, appended");
+  #ifndef _MSC_VER
+    addFlag ("sigpipe", "Exit normally on SIGPIPE");
+  #endif
+  }
+}
+
+
+
 void Application::qc () const
 {
   if (! qc_on)
@@ -2287,6 +2394,7 @@ string Application::key2shortHelp (const string &name) const
 string Application::getInstruction () const
 {
   string instr (description);
+
   instr += "\n\nUSAGE:   " + programName;
 
   for (const Positional& p : positionals)
@@ -2319,10 +2427,8 @@ string Application::getInstruction () const
 	if (! requiredGroup_prev. empty ())
 		instr += ")";
   
-//if (! contains (name2arg, "help"))
-    instr += "\nHELP:    " + programName + " " + ifS (gnu, "-") + "-" + helpS;
-//if (! contains (name2arg, "version"))
-	  instr += "\nVERSION: " + programName + " " + ifS (gnu, "-") + "-" + versionS;
+  instr += "\nHELP:    " + programName + " " + ifS (gnu, "-") + "-" + helpS;
+  instr += "\nVERSION: " + programName + " " + ifS (gnu, "-") + "-" + versionS;
 
   return instr;
 }
@@ -2352,7 +2458,7 @@ string Application::getHelp () const
 	    	instr += par + "Default: " + key. defaultValue;
 	  }
 	}
-  
+	
   return instr;
 }
 
@@ -2527,6 +2633,11 @@ int Application::run (int argc,
   
   
     string logFName;
+    logFName = getArg ("log");
+  	ASSERT (! logPtr);
+    if (! logFName. empty ())
+  		logPtr = new ofstream (logFName, ios_base::app);
+
     string jsonFName;
     if (gnu)
     {
@@ -2535,11 +2646,6 @@ int Application::run (int argc,
     }
     else
     {
-	    logFName = getArg ("log");
-	  	ASSERT (! logPtr);
-	    if (! logFName. empty ())
-	  		logPtr = new ofstream (logFName, ios_base::app);
-
 	  	if (getFlag ("qc"))
 	  		qc_on = true;
 	
@@ -2560,7 +2666,9 @@ int Application::run (int argc,
 	  	  ASSERT (jRoot);
 	  	}
 	  	
+    #ifndef _MSC_VER
 	  	sigpipe = getFlag ("sigpipe");
+    #endif
 	  }
   
 	
@@ -2604,7 +2712,7 @@ int Application::run (int argc,
 
 
 
-
+#ifndef _MSC_VER
 // ShellApplication
 
 ShellApplication::~ShellApplication ()
@@ -2624,12 +2732,8 @@ void ShellApplication::initEnvironment ()
   if (useTmp)
   {
     char templateS [] = {'/', 't', 'm', 'p', '/', 'X', 'X', 'X', 'X', 'X', 'X', '\0'}; 
-  #if 0
-    tmp = tmpnam (NULL);
-  #else
     EXEC_ASSERT (mkstemp (templateS) != -1);
     tmp = templateS;
-  #endif
   	if (tmp. empty ())
   		throw runtime_error ("Cannot create a temporary file");
   }
@@ -2638,11 +2742,11 @@ void ShellApplication::initEnvironment ()
 	execDir = getProgramDirName ();
 	if (execDir. empty ())
 		execDir = which (programArgs. front ());
-	ASSERT (isRight (execDir, "/"));
-
+  if (! isRight (execDir, "/"))
+    throw logic_error ("Cannot identify the directory of the executable");
 
   string execDir_ (execDir);
-  trimSuffix (execDir_, "/");
+  trimSuffix (execDir_, "/");				
   for (Key& key : keys)
     if (! key. flag)
       replaceStr (key. defaultValue, "$BASE", execDir_);
@@ -2652,8 +2756,8 @@ void ShellApplication::initEnvironment ()
 
 void ShellApplication::body () const
 {
-  if (useTmp && qc_on)
-    cout << tmp << endl;  
+  if (logPtr && useTmp)
+    *logPtr << tmp << endl;
   shellBody ();
 }
 
@@ -2705,7 +2809,7 @@ string ShellApplication::fullProg (const string &progName) const
 	ASSERT (isRight (dir, "/"));
 	return dir + progName + " ";
 }
-
+#endif
 
 
 

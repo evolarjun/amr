@@ -32,16 +32,6 @@
 */
    
    
-// PAR ??
-//#define VER 1  
-//#define VER 2  // PD-2074
-#define VER 3  // PD-2109
-//
-#if VER <= 0
-  #error "Negative version " VER
-#endif
-
-
 
 #undef NDEBUG 
 #include "common.inc"
@@ -50,11 +40,12 @@
 using namespace Common_sp;
 #include "gff.hpp"
 using namespace GFF_sp;
+#include "alignment.hpp"
+using namespace Alignment_sp;
 
 
 
 static constexpr bool useCrossOrigin = false;  // GPipe: true
-static constexpr char pm_delimiter = '_';
 
 
 
@@ -63,7 +54,6 @@ namespace
 
 
 constexpr static double frac_delta = 1e-5;  // PAR      
-const double NaN = numeric_limits<double>::quiet_NaN ();  
   
 // PAR
 constexpr double ident_min_def = 0.9;
@@ -168,10 +158,7 @@ struct Fam
         genesymbol. clear ();
       if (hmm == "-")
         hmm. clear ();
-      if (hmm. empty () != ! tc1)
-      { cout << id << ' ' << hmm << ' ' << tc1 << endl;
-        ERROR;
-      }
+      ASSERT (hmm. empty () == ! tc1);
       ASSERT (hmm. empty () == ! tc2); 
     //IMPLY (! hmm. empty (), tc2 > 0);
       if (familyName == "NULL")
@@ -222,6 +209,7 @@ struct HmmAlignment
     // May be different from max(Domain::score)
   const Fam* fam {nullptr};
     // Query
+    // !nullptr
 //ali_from, ali_to ??
   unique_ptr<const BlastAlignment> blastAl;
     // (bool)get()
@@ -230,20 +218,14 @@ struct HmmAlignment
   HmmAlignment (const string &line,
                 const Batch &batch);
     // Update: batch.domains
-  HmmAlignment (const HmmAlignment &other);
-  HmmAlignment operator= (const HmmAlignment &other);
-  HmmAlignment () = default;
   void saveText (ostream &os) const 
     { os << sseqid << ' ' << score1 << ' ' << score2 << ' ' << (fam ? fam->hmm : string ()); }
       
       
   bool good () const
-    { /*cout << fam << endl;
-    	if (fam)
-    		cout << fam->id << ' ' << fam->hmm << ' ' << fam->tc1 << ' ' << fam->tc2 << endl; */
-    	return    fam 
-             && ! fam->hmm. empty ()
-             && score1 >= fam->tc1
+    { QC_ASSERT (fam);
+      QC_ASSERT (! fam->hmm. empty ());
+    	return    score1 >= fam->tc1
              && score2 >= fam->tc2
            //&& fam->reportable
              ; 
@@ -254,7 +236,7 @@ private:
     // Reflexive
     // For one sseqid: one HmmAlignment is better than all others
     { ASSERT (good ());
-      ASSERT (other. fam);
+      ASSERT (other. good ());
       if (sseqid != other. sseqid)
         return false;
       switch (criterion)
@@ -302,102 +284,7 @@ public:
 
 
 
-struct PointMut
-{
-	size_t pos {0};
-	  // In reference sequence
-	  // >= 0
-	char alleleChar {' '};
-	  // Upper-case
-	// !empty()
-	string geneMutation;
-	  // Depends on the above
-	string geneMutationGen;
-	  // geneMutation generalized, may have a different pos
-	string classS;
-	string subclass;
-	string name;
-	  // Species binomial + resistance
-	bool additional {false};
-
-	
-	PointMut (size_t pos_arg,
-						char alleleChar_arg,
-						const string &geneMutation_arg,
-						const string &geneMutationGen_arg,
-						const string &class_arg,
-						const string &subclass_arg,
-						const string &name_arg)
-		: pos (pos_arg)
-		, alleleChar (toUpper (alleleChar_arg))
-		, geneMutation (geneMutation_arg)
-		, geneMutationGen (geneMutationGen_arg)
-		, classS (class_arg)
-		, subclass (subclass_arg)
-		, name (name_arg)
-		{ ASSERT (pos > 0);
-			pos--;
-			ASSERT (alleleChar != ' ');
-			ASSERT (! geneMutation. empty ());
-			ASSERT (! geneMutationGen. empty ());
-			if (isRight (geneMutation, "STOP"))
-				ASSERT (alleleChar == '*')
-			else
-        ASSERT (geneMutation. back () == alleleChar);
-      ASSERT (geneMutation. front () != alleleChar);
-			if (isRight (geneMutationGen, "STOP"))
-				ASSERT (alleleChar == '*')
-			else
-        ASSERT (geneMutationGen. back () == alleleChar);
-      ASSERT (geneMutationGen. front () != alleleChar);
-			ASSERT (! name. empty ());
-      ASSERT (! contains (name, '\t'));
-      replace (name, '_', ' ');
-      ASSERT (! contains (name, "  "));
-		}
-	PointMut (const string &gene,
-	          size_t pos_arg,
-	          char refChar,
-	          char alleleChar_arg)
-	  : pos (pos_arg)
-	  , alleleChar (alleleChar_arg)
-	  , geneMutation (gene + pm_delimiter + refChar + toString (pos + 1) + alleleChar)
-	  , geneMutationGen (geneMutation)
-	  , name (string (refChar == alleleChar ? "wildtype" : "mutation") + " " + strUpper1 (gene))
-	  , additional (true)
-	  { ASSERT (! gene. empty ());
-	  	ASSERT (isUpper (refChar));
-	  	ASSERT (isUpper (alleleChar));
-	  	ASSERT (refChar != ' ');
-	  	ASSERT (alleleChar != ' ');
-	  }
-	PointMut () = default;
-
-
-  bool empty () const
-    { return name. empty (); }
-  string getResistance () const
-    { size_t p = name. find (' ');
-    	ASSERT (p != string::npos);
-    	p = name. find (' ', p + 1);
-    	ASSERT (p != string::npos);
-    	return name. substr (p + 1);
-    }
-  void print (ostream &os) const
-    { os << pos << ' ' << alleleChar << ' ' << geneMutation << ' ' << geneMutationGen << ' ' << name << endl; }
-  bool operator< (const PointMut &other) const
-    { LESS_PART (*this, other, pos);
-      LESS_PART (*this, other, alleleChar);
-      return false;
-    }
-  bool operator== (const PointMut &other) const
-    { return    pos        == other. pos
-    	       && alleleChar == other. alleleChar;
-    }
-};
-
-
-map <string/*accession*/, Vector<PointMut>>  accession2pointMuts;
+map <string/*accession*/, Vector<Mutation>>  accession2mutations;
 
 
 bool cdsExist = false;
@@ -407,35 +294,24 @@ bool reportPseudo = false;
 const string stopCodonS ("[stop]");
 const string frameShiftS ("[frameshift]");
 
-unique_ptr<OFStream> point_mut_all;
+unique_ptr<OFStream> mutation_all;
 
 
 
-struct BlastAlignment 
+struct BlastAlignment : Alignment
+// BLASTP or BLASTX
 {
-  // BLAST alignment
-  size_t length {0}, nident {0}  // aa
-       ,    refStart {0},    refStop {0},    refLen {0}
-       , targetStart {0}, targetStop {0}, targetLen {0};
-    // Positions are 0-based
-    // start < stop
-
   // target    
-  string targetName; 
-  bool targetProt {true};
-    // false <=> DNA
-  bool targetStrand {true}; 
-    // false <=> negative
   size_t targetAlign {0};
   size_t targetAlign_aa {0};
   bool partialDna {false};
   bool stopCodon {false}; 
   bool frameShift {false};
   
-  // Reference (AMR) protein
+  // Reference protein
   long gi {0};  
     // 0 <=> HMM method
-  string accessionProt; 
+  string refAccession; 
   size_t part {1};    
     // >= 1
     // <= parts
@@ -451,30 +327,17 @@ struct BlastAlignment
   BlastRule partialBR;
   
   string product;  
-
   Vector<Locus> cdss;
-  Vector<PointMut> pointMuts;
-  
   static constexpr size_t mismatchTail_aa = 10;  // PAR
   size_t mismatchTailTarget {0};
 
 
   BlastAlignment (const string &line,
                   bool targetProt_arg)
-    : targetProt (targetProt_arg)
+    : Alignment (line, targetProt_arg, true)
     {
     	try 
     	{
-	      string refName, targetSeq, refSeq;
-	      static Istringstream iss;
-		    iss. reset (line);
-		    iss >> targetName >> refName >> length >> nident >> targetStart >> targetStop >> targetLen >> refStart >> refStop >> refLen >> targetSeq >> refSeq;
-		  // format:  qseqid      sseqid    length    nident         qstart         qend         qlen      sstart      send      slen         sseq    qseq
-	    // blastp:  ...         ...          663       169              2          600          639           9       665       693          ...
-	    // blastx:  ...         ...          381       381          13407        14549        57298           1       381       381          ...
-		    ASSERT (! targetSeq. empty ());	
-		    ASSERT (targetSeq. size () == refSeq. size ());    
-
         try
         {	
 		      // refName	    
@@ -484,64 +347,53 @@ struct BlastAlignment
 			    famId                       =                     rfindSplit (refName, '|');  // Reportable_vw.fam
 			    parts                       = (size_t) str2<int> (rfindSplit (refName, '|'));
 			    part                        = (size_t) str2<int> (rfindSplit (refName, '|'));
-			  #if VER == 1
-			                                                      rfindSplit (refName, '|');  // nucl_accession
-			  #endif
-			    accessionProt               =                     rfindSplit (refName, '|');
+			    refAccession               =                      rfindSplit (refName, '|');
 			    gi = str2<long> (refName);
+  		    if (contains (refAccession, ':'))
+  		    {
+  		      QC_ASSERT (isMutation ());
+  		      const string geneMutation =               rfindSplit (refAccession, ':');
+  		      const size_t pos          = str2<size_t> (rfindSplit (refAccession, ':'));
+  		      ASSERT (refMutation. empty ());
+  		      refMutation = move (Mutation (pos, geneMutation));
+  		      ASSERT (! refMutation. empty ());
+  		      refMutation. qc ();
+  		      refMutation2refSeq ();
+  		    }
 			  }
 			  catch (const exception &e)
 			  {
 			  	throw runtime_error (string ("Bad AMRFinder database\n") + e. what ());
 			  }
-		    ASSERT (gi > 0);
+		    QC_ASSERT (gi > 0);
 		    	    
 		    replace (product, '_', ' ');
 		    
-
-        if (! isPointMut ())
+        // BlastRule
+        if (! isMutation ())
         {
   		    // PD-2310
   		    completeBR. ident = getFam () -> completeBR. ident;
   		    partialBR.  ident = getFam () -> partialBR.  ident;
   		  }
-  		    
 		    completeBR. ref_coverage = complete_coverage_min_def;
 		    partialBR.  ref_coverage = defaultPartialBR. ref_coverage;
-		    
 		    if (completeBR. empty ())
 		      completeBR = defaultCompleteBR;
 		    if (partialBR. empty ())
 		      partialBR = defaultPartialBR;
-		      
 		    if (ident_min_user)
 		    {
 		      completeBR. ident = defaultCompleteBR. ident;
 		      partialBR.  ident = defaultPartialBR.  ident;
 		    }
-		    
-
-		    ASSERT (refStart < refStop);  
-	
-		    ASSERT (targetStart != targetStop);
-		    targetStrand = targetStart < targetStop;  
-		    IMPLY (targetProt, targetStrand);
-		    if (! targetStrand)
-		      swap (targetStart, targetStop);
-		      
-		    ASSERT (refStart >= 1);
-		    ASSERT (targetStart >= 1);
-		    ASSERT (refStart < refStop);
-		    ASSERT (targetStart < targetStop);
-		    refStart--;
-		    targetStart--;
-	
+		    	
 		    partialDna = false;
 		    constexpr size_t mismatchTailDna = 10;  // PAR
-		    if (! targetProt && targetStop - targetStart >= 30)  // PAR, PD-671
+		    if (! targetProt && targetEnd - targetStart >= 30)  // PAR, PD-671
 		    {
 		           if (refStart > 0      && targetTail (true)  <= mismatchTailDna)  partialDna = true;
-		      else if (refStop  < refLen && targetTail (false) <= mismatchTailDna)  partialDna = true;
+		      else if (refEnd   < refLen && targetTail (false) <= mismatchTailDna)  partialDna = true;
 		    }
 	
 	      setTargetAlign ();	    
@@ -549,7 +401,7 @@ struct BlastAlignment
 		    if (contains (targetSeq, "*"))  
 		      stopCodon  =  true;
 		  //frameShift = contains (targetSeq, "/");  // Needs "blastall -p blastx ... "
-		    if (! targetProt && (targetStop - targetStart) % 3 != 0)
+		    if (! targetProt && (targetEnd - targetStart) % 3 != 0)
 	  	    frameShift = true;	  
 		  	  
 		    // For BLASTX
@@ -566,79 +418,15 @@ struct BlastAlignment
 		      mismatchTailTarget *= 3;
 		      
 		    if (! targetProt)
-		      cdss << move (Locus (0, targetName, targetStart, targetStop, targetStrand, partialDna, 0));
+		      cdss << move (Locus (0, targetName, targetStart, targetEnd, targetStrand, partialDna, 0));
 	
-	      strUpper (targetSeq);
-	      strUpper (refSeq);
-		    if (const Vector<PointMut>* pointMuts_all = findPtr (accession2pointMuts, accessionProt))
+
+		    if (const Vector<Mutation>* refMutations = findPtr (accession2mutations, refAccession))
 		    {
 		    	if (verbose ())
-		        cout << "PointMut protein found: " << refName << endl;
-  	      ASSERT (isPointMut ());
-		      ASSERT (! pointMuts_all->empty ());
-		      string s (pointMuts_all->front (). geneMutation);
-		      rfindSplit (s, pm_delimiter);  
-		      const string pmGene (s);
-	    		size_t refPos = refStart;
-	    		size_t j = 0;
-	  		  while (j < pointMuts_all->size () && pointMuts_all->at (j). pos < refPos)
-	  		  {
-	  		  	if (point_mut_all. get ())
-	  		  	{
-	  		  		PointMut pm (pointMuts_all->at (j));
-	  		  		pm. name = "Non-called " + pmGene;
-	  		  		pm. additional = true;
-	  		  		pointMuts << move (pm);
-	  		  	}
-	  		    j++;
-	  		  }
-	   		  VectorPtr<PointMut> pos_pm;  // PointMut's of the same refPos
-	    		FFOR (size_t, i, refSeq. size ())
-	    	  {
-	    		  if (refSeq [i] == '-')
-	    		  	continue;
-	    		  pos_pm. clear ();
-	    		  while (j < pointMuts_all->size () && pointMuts_all->at (j). pos == refPos)
-	    		  {
-	    		  	pos_pm << & pointMuts_all->at (j);
-	    		    j++;
-	    		  }
-			      if (targetSeq [i] == refSeq [i])
-			      	if (pos_pm. empty ())
-			      		;
-			      	else
-			      	{
-				      	for (const PointMut* pm : pos_pm)
-					    		if (targetSeq [i] == pm->alleleChar)
-					    			throw logic_error ("Wildtype allele " + pm->geneMutation);
-					    	if (point_mut_all. get ())
-					    		pointMuts << move (PointMut (pmGene, refPos, refSeq [i], targetSeq [i]));
-			      	}
-			      else
-			      {
-			      //bool found = false;
-			      	for (const PointMut* pm : pos_pm)
-				    		if (targetSeq [i] == pm->alleleChar)
-				    		{
-			    			  pointMuts << *pm;
-				    		//found = true;
-				    		}
-				    #if 0
-				    	if (! found && point_mut_all. get ())
-				    		pointMuts << move (PointMut (pmGene, refPos, refSeq [i], targetSeq [i]));
-				    #endif
-				    }
-	  		  	refPos++;
-	    		}
-	 		  	if (point_mut_all. get ())
-		  		  while (j < pointMuts_all->size ())
-		  		  {
-				  		PointMut pm (pointMuts_all->at (j));
-				  		pm. name = "Non-called " + pmGene;
-				  		pm. additional = true;
-				  		pointMuts << move (pm);
-		  		    j++;
-		  		  }
+		        cout << "Mutation protein found: " << refName << endl;
+  	      QC_ASSERT (isMutation ());  	      
+  	      setSeqChanges (*refMutations, 0 /*flankingLen*/, mutation_all. get ());
 		    }
 		  }
 		  catch (...)
@@ -648,60 +436,54 @@ struct BlastAlignment
 		  }
     }
   explicit BlastAlignment (const HmmAlignment& other)
-    : targetName (other. sseqid)     
-    , famId      (other. fam->id)   
+    : famId      (other. fam->id)   
     , gene       (other. fam->id)   
     , product    (other. fam->familyName)   
-    { if (allele ())
+    { targetName = other. sseqid;
+      targetProt = true;
+      alProt = true;
+      if (allele ())
         ERROR_MSG (famId + " " + gene);
+      ASSERT (other. good ());
     }
   void qc () const
     {
       if (! qc_on)
         return;
+      Alignment::qc ();
 	    QC_ASSERT (! famId. empty ());
 	    QC_ASSERT (! gene. empty ());
 	    QC_ASSERT (part >= 1);
 	    QC_ASSERT (part <= parts);
 	    QC_ASSERT (! product. empty ());
-	    QC_IMPLY (targetProt, targetStrand);  
-	    QC_ASSERT (targetStart < targetStop);
-	    QC_ASSERT (targetStop <= targetLen);
-	    QC_ASSERT ((bool) gi == (bool) length);
+	    QC_ASSERT ((bool) gi == ! targetSeq. empty ());
 	    QC_ASSERT ((bool) gi == (bool) refLen);
 	    QC_ASSERT ((bool) gi == (bool) nident);
-	    QC_ASSERT ((bool) gi == ! accessionProt. empty ());
-	    QC_IMPLY (! gi && ! isPointMut (), getFam () -> getHmmFam ());
+	    QC_ASSERT ((bool) gi == ! refAccession. empty ());
+	    QC_IMPLY (! gi && ! isMutation (), getFam () -> getHmmFam ());
 	    QC_IMPLY (targetProt, ! partialDna);
-	  //QC_IMPLY (! targetProt, (targetStop - targetStart) % 3 == 0);
 	    QC_ASSERT (targetAlign);
 	    QC_IMPLY (targetProt, targetAlign == targetAlign_aa);
 	    QC_IMPLY (! targetProt, targetAlign == 3 * targetAlign_aa);
 	    QC_ASSERT (nident <= targetAlign_aa);
 	  //QC_IMPLY (! targetProt, cdss. empty ());
-	    if (gi)
-	    {
-	      QC_ASSERT (refStart < refStop);
-  	    QC_ASSERT (nident <= refStop - refStart);
-  	    QC_ASSERT (refStop <= refLen);
-  	    QC_ASSERT (refStop - refStart <= length);	    
-  	    QC_ASSERT (targetAlign_aa <= length);
-	    }
+	    QC_IMPLY (gi, targetAlign_aa <= targetSeq. size ());
+	    QC_IMPLY (! refMutation. empty (), isMutation ());
 	  #if 0
 	    if (targetProt)
     	  for (const Locus& cds : cdss)
     	    QC_ASSERT (   cds. size () == 3 * targetLen + 3
-    	            || cds. size () == 3 * targetLen 
-    	           );
+        	           || cds. size () == 3 * targetLen 
+        	          );
     #endif
-	    QC_IMPLY (! pointMuts. empty (), isPointMut ());
+	    QC_IMPLY (! seqChanges. empty (), isMutation ());
     }
   void saveText (ostream& os) const 
     { // PD-736, PD-774, PD-780, PD-799
       const string na ("NA");
-      const string proteinName (isPointMut () 
+      const string proteinName (isMutation () 
                                   ? string ()
-                                  : refExactlyMatched () || ! gi 
+                                  : refExactlyMatched () || parts >= 2 || ! gi   // PD-3187, PD-3192
                                     ? product 
                                     : nvl (getFam () -> familyName, na)
                                );
@@ -709,35 +491,39 @@ struct BlastAlignment
       Vector<Locus> cdss_ (cdss);
       if (cdss_. empty ())
         cdss_ << Locus ();
-      Vector<PointMut> pointMuts_ (pointMuts);
-      if (pointMuts_. empty ())
-        pointMuts_ << PointMut ();
+      Vector<SeqChange> seqChanges_ (seqChanges);
+      if (seqChanges_. empty ())
+        seqChanges_ << SeqChange ();
       for (const Locus& cds : cdss_)
-	      for (const PointMut& pm : pointMuts_)
+	      for (SeqChange& seqChange : seqChanges_)
 	      {
+	        Mutation mut;
+	        if (seqChange. mutation)
+	          mut = * seqChange. mutation;
+	        IMPLY (! verbose () && isMutation (), ! mut. empty ());  
           const string method (getMethod (cds));
 	        TabDel td (2, false);
           td << (targetProt ? targetName : na);  // PD-2534
 	        if (cdsExist)
 	          td << (cds. contig. empty () ? targetName  : cds. contig)
 	             << (cds. contig. empty () ? targetStart : cds. start) + 1
-	             << (cds. contig. empty () ? targetStop  : cds. stop)
+	             << (cds. contig. empty () ? targetEnd  : cds. stop)
 	             << (cds. contig. empty () ? (targetStrand ? '+' : '-') : (cds. strand ? '+' : '-'));
-	        td << (isPointMut () /*! pm. empty ()*/
-			             ? pm. geneMutation
+	        td << (isMutation ()
+			             ? mut. geneMutation
 	                 : print_fam 
 			                 ? famId
 			                 : (isLeft (method, "ALLELE") ? famId : nvl (getFam () -> genesymbol, na))
 	              )
-	           <<   (pm. empty () ? proteinName : pm. name)
+	           <<   (mut. empty () ? proteinName : (mut. name + ifS (seqChange. empty (), " [NO_CALL]")))
 	              + ifS (reportPseudo, ifS (frameShift, " " + frameShiftS))
-	           << (isPointMut () || getFam () -> reportable >= 2 ? "core" : "plus");  // PD-2825
+	           << (isMutation () || getFam () -> reportable >= 2 ? "core" : "plus");  // PD-2825
           // PD-1856
-	        if (isPointMut ())
+	        if (isMutation ())
 	          td << "AMR"
 	             << "POINT"
-	             << nvl (pm. classS, na)
-	             << nvl (pm. subclass, na);
+	             << nvl (mut. classS, na)
+	             << nvl (mut. subclass, na);
 	        else
 	          td << nvl (getFam () -> type, na)  
   	           << nvl (getFam () -> subtype, na)
@@ -749,8 +535,8 @@ struct BlastAlignment
 	          td << refLen
 	             << refCoverage () * 100.0  
 	             << pIdentity () * 100.0  // refIdentity
-	             << length
-	             << accessionProt
+	             << targetSeq. size ()
+	             << refAccession
 	             << product
 	             ;
 	        else
@@ -761,7 +547,7 @@ struct BlastAlignment
 	             << na
 	             << na;
 	        // PD-775
-	        if (isPointMut ())
+	        if (isMutation ())
 	          td << na
 	             << na;
 	        else if (const Fam* f = getFam () -> getHmmFam ())
@@ -784,7 +570,7 @@ struct BlastAlignment
 		            td << na;        	
 		        }
 	        }
-	        if (pm. empty () || ! pm. additional)
+	        if (mut. empty () || ! seqChange. empty ())
 	        {
   	        if (verbose ())
   	          os         << refExactlyMatched ()
@@ -792,45 +578,29 @@ struct BlastAlignment
   	             << '\t' << alleleReported ()
   	             << '\t' << targetProt
   	             << '\t' << nident
+  	             << '\t' << refMutation
   	             << '\t';
 	          os << td. str () << endl;
 	        }
-	        if (point_mut_all. get () && ! pm. empty ())
-	          *point_mut_all << td. str () << endl;
+	        if (mutation_all. get () && ! mut. empty ())
+	          *mutation_all << td. str () << endl;
 	      }
     }
     
 
-  bool isPointMut () const
-    { return resistance == "point_mutation"; }
-  Set<string> getMutations () const
-    { Set<string> mutations;
-      for (const PointMut& pointMut : pointMuts)
-        mutations << pointMut. geneMutation;
-      return mutations;
+  bool isMutation () const
+    { return resistance == "mutation"; }
+  Set<string> getMutationSymbols () const
+    { Set<string> mutationSymbols;
+      for (const SeqChange& seqChange : seqChanges)
+        if (seqChange. mutation)
+          mutationSymbols << seqChange. mutation->geneMutation;
+      return mutationSymbols;
     }        
   bool allele () const
     { return famId != gene && parts == 1; }
-  size_t targetTail (bool upstream) const
-    { return targetStrand == upstream ? targetStart : (targetLen - targetStop); }
   size_t refEffectiveLen () const
-    { return partialDna ? refStop - refStart : refLen; }
-  double pIdentity () const
-    { return (double) nident / (double) length; }
-  double refCoverage () const
-    { return (double) (refStop - refStart) / (double) refLen; }
-  double targetCoverage () const
-    { return targetProt ? (double) (targetStop - targetStart) / (double) targetLen : NaN; }
-  bool refExactlyMatched () const
-    { return    refLen   
-             && nident == refLen 
-             && refLen == length;
-	  }
-  bool targetExactlyMatched () const
-    { return    targetLen   
-             && nident == targetLen 
-             && targetLen == length;
-	  }
+    { return partialDna ? refEnd - refStart : refLen; }
   bool partial () const
     // Requires: good()
     { return refCoverage () < complete_coverage_min_def - frac_delta; }  
@@ -844,23 +614,30 @@ struct BlastAlignment
   size_t missedDnaStart (const Locus &cds) const
     { return 3 * (getTargetStrand (cds)
                     ? refStart
-                    : refLen - refStop
+                    : refLen - refEnd
                  );
     }
   size_t missedDnaStop (const Locus &cds) const
     { return 3 * (getTargetStrand (cds)
-                    ? refLen - refStop
+                    ? refLen - refEnd
                     : refStart
                  );
     }
   bool truncated (const Locus &cds) const
     { return    (missedDnaStart (cds) > 0 && (targetProt ? (cds. empty () ? false : cds. atContigStart ()) : targetStart            <= Locus::end_delta))
-             || (missedDnaStop  (cds) > 0 && (targetProt ? (cds. empty () ? false : cds. atContigStop  ()) : targetLen - targetStop <= Locus::end_delta));
+             || (missedDnaStop  (cds) > 0 && (targetProt ? (cds. empty () ? false : cds. atContigStop  ()) : targetLen - targetEnd <= Locus::end_delta));
+    }
+  bool truncatedCds () const
+    { for (const Locus& cds : cdss)
+        if (truncated (cds))
+          return true;
+      return false;
     }
   bool alleleReported () const
     { return refExactlyMatched () && allele () && (! targetProt || refLen == targetLen); }
 	string getMethod (const Locus &cds) const
-	  { string method (refExactlyMatched () 
+	  { IMPLY (refExactlyMatched (), ! isMutation ());
+	    string method (refExactlyMatched () 
         	             ? alleleReported () 
         	               ? "ALLELE"
         	               : "EXACT"  // PD-776
@@ -869,7 +646,7 @@ struct BlastAlignment
         	                  ? truncated (cds)
         	                    ? "PARTIAL_CONTIG_END"  // PD-2267
         	                    : "PARTIAL"
-        	                  : isPointMut ()
+        	                  : isMutation ()
         	                    ? "POINT"
         	                    : "BLAST"
         	                : "HMM"
@@ -892,7 +669,7 @@ struct BlastAlignment
 	  { return    pIdentity ()      >= br. ident        - frac_delta
   	         && refCoverage ()    >= br. ref_coverage - frac_delta
   	         ;
-	  }
+	  }	
   bool good () const
     { if (! gi)
         return true;
@@ -902,19 +679,17 @@ struct BlastAlignment
           return false; 
         if (frameShift)
           return false;
-        if (partial () && ! cdss. empty ())
-        {
-          bool found = false;
-          for (const Locus& cds : cdss)
-            if (truncated (cds))
-              found = true;
-          if (! found)
-            return false;
-        }
+        if (   partial () 
+            && ! cdss. empty ()
+            && ! truncatedCds ()
+           )
+          return false;
       }
   	  // PD-1032
 	    if (partial ())
-  	    if (parts > 1)
+  	    if (   parts > 1 
+  	        || (! truncatedCds () && refEnd - refStart <= 35)  // PAR  // PD-3287
+  	       )
   	    	return false;
 	      else
 	        return passBlastRule (partialBR);
@@ -928,7 +703,7 @@ private:
     { ASSERT (targetProt == other. targetProt);
     	return    targetStrand == other. targetStrand
              && difference (targetStart, other. targetStart) <= mismatchTailTarget 
-             && difference (targetStop,  other. targetStop)  <= mismatchTailTarget;	    
+             && difference (targetEnd,   other. targetEnd)   <= mismatchTailTarget;	    
     }
     // Requires: same targetName
 #endif
@@ -936,7 +711,7 @@ private:
     { ASSERT (targetProt == other. targetProt);
     	return    targetStrand                     == other. targetStrand
              && targetStart + mismatchTailTarget >= other. targetStart 
-             && targetStop                       <= other. targetStop + mismatchTailTarget;	    
+             && targetEnd                       <= other. targetEnd + mismatchTailTarget;	    
     }
     // Requires: same targetName
   bool matchesCds (const BlastAlignment &other) const
@@ -959,7 +734,7 @@ private:
     			  protStart += 3;
     			ASSERT (protStart < protStop);
     			const size_t dnaStart  = other. targetStart;
-    			const size_t dnaStop   = other. targetStop;
+    			const size_t dnaStop   = other. targetEnd;
     			ASSERT (dnaStart < dnaStop);
     		#if 0
     		  // PD-2271: partial 
@@ -1004,7 +779,7 @@ private:
 	      	 )
 	        return false;
 	    //if (targetProt)
-	      //{ LESS_PART (other, *this, isPointMut ()); }
+	      //{ LESS_PART (other, *this, isMutation ()); }
 	      LESS_PART (other, *this, refExactlyMatched ());  // PD-1261, PD-1678
 	      LESS_PART (other, *this, nident);
 	      LESS_PART (*this, other, refEffectiveLen ());
@@ -1015,17 +790,17 @@ private:
 	    	  return false;
 	    	if (! targetProt && ! other. matchesCds (*this))
 	    	  return false;
-				if (isPointMut ())
+				if (isMutation ())
 				{
-				  if (! other. isPointMut ())
+				  if (! other. isMutation ())
 				    return true;
-				  const Set<string> mutations      (       getMutations ());
-				  const Set<string> otherMutations (other. getMutations ());
-				  if (mutations == otherMutations)
+				  const Set<string> mutationSymbols      (       getMutationSymbols ());
+				  const Set<string> otherMutationSymbols (other. getMutationSymbols ());
+				  if (mutationSymbols == otherMutationSymbols)
 				    return targetProt;
-				  if (mutations. containsAll (otherMutations))
+				  if (mutationSymbols. containsAll (otherMutationSymbols))
 				    return true;
-				  if (otherMutations. containsAll (mutations))
+				  if (otherMutationSymbols. containsAll (mutationSymbols))
 				    return false;
 				}
 				else
@@ -1040,7 +815,7 @@ private:
     }
 public:
   const Fam* getFam () const
-    { ASSERT (! isPointMut ());
+    { ASSERT (! isMutation ());
       const Fam* fam = famId2fam [famId];
       if (! fam)
         fam = famId2fam [gene];
@@ -1052,13 +827,13 @@ public:
     // Requires: all SCCs of betterEq() are complete subgraphs ??
     { return    betterEq (other) 
     	       && (   ! other. betterEq (*this) 
-    	           || accessionProt < other. accessionProt  // Tie resolution: PD-1245
+    	           || refAccession < other. refAccession  // Tie resolution: PD-1245
     	          );
     }
   bool better (const HmmAlignment& other) const
     { ASSERT (other. good ());
     	ASSERT (other. blastAl. get ());
-    	if (isPointMut ())
+    	if (isMutation ())
     	  return false;
     	if (targetProt)
     	{ if (targetName != other. sseqid)
@@ -1072,22 +847,17 @@ public:
              || getFam () -> descendantOf (other. fam)
              ;
     }
-  bool operator< (const BlastAlignment &other) const
-    { 
-      LESS_PART (*this, other, targetName);
-      LESS_PART (*this, other, targetStart);
-      LESS_PART (*this, other, famId);
-      LESS_PART (*this, other, accessionProt);
-      return false;
+  size_t getCdsStart () const
+    { return cdss. empty () 
+               ? 0
+               : cdss. front (). start;
     }
-//size_t lengthScore () const
-  //{ return refLen - (refStop - refStart); } 
   void setTargetAlign ()
-    { targetAlign = targetStop - targetStart;
+    { targetAlign = targetEnd - targetStart;
       targetAlign_aa = targetAlign;
       if (! targetProt)
       {
-        ASSERT (targetAlign % 3 == 0);
+        QC_ASSERT (targetAlign % 3 == 0);
         targetAlign_aa = targetAlign / 3;
       }
     }
@@ -1095,7 +865,7 @@ public:
                 const Annot &annot)
     { ASSERT (targetProt);
     	ASSERT (cdss. empty ());
-  	  string locusTag = targetName;
+  	  string locusTag (targetName);
   	  if (! seqId2locusTag. empty ())
   	  {
   	  	string s;
@@ -1123,6 +893,18 @@ public:
   	    throw runtime_error ("Locus tag " + strQuote (locusTag) + " is misssing in .gff-file. Protein name: " + targetName);
   	  qc ();
     }
+  static bool less (const BlastAlignment* a,
+                    const BlastAlignment* b) 
+  { ASSERT (a);
+    ASSERT (b);
+    LESS_PART (*a, *b, targetName);
+    LESS_PART (*a, *b, targetStart);
+    LESS_PART (*a, *b, getCdsStart ());
+    LESS_PART (*a, *b, famId);
+    LESS_PART (*a, *b, refAccession);
+    LESS_PART (*b, *a, pIdentity ());
+    return false;
+  }
 };
 
 
@@ -1132,7 +914,7 @@ bool HmmAlignment::better (const BlastAlignment& other) const
 { 
   ASSERT (good ());
   ASSERT (other. good ());
-	if (other. isPointMut ())
+	if (other. isMutation ())
 	  return false;
 	if (! other. targetProt)
 	  return false;
@@ -1144,6 +926,7 @@ bool HmmAlignment::better (const BlastAlignment& other) const
 
 
 
+
 // Batch
 
 struct Batch
@@ -1151,23 +934,22 @@ struct Batch
   // Reference input
   map<string/*hmm*/,const Fam*> hmm2fam;
   uchar reportable_min {0};
+  Vector<long> suppress_prots;
 
   // Target input
-  typedef  List<BlastAlignment>  BlastAls; 
-  typedef  List<HmmAlignment>  HmmAls;   
-
-  BlastAls blastAls;   
+  VectorOwn<BlastAlignment> blastAls;
+  VectorOwn<HmmAlignment> hmmAls;
   bool hmmExist {false};
   map<HmmAlignment::Pair, HmmAlignment::Domain> domains;  // Best domain  
-  HmmAls hmmAls;  
   
   // Output
-  BlastAls goodBlastAls; 
+  VectorPtr<BlastAlignment> goodBlastAls; 
   
   
   Batch (const string &famFName,
          const string &organism, 
-         const string &point_mut,
+         const string &mutation_tab,
+         const string &suppress_prot_FName,
          bool non_reportable,
          bool report_core_only)
     : reportable_min (non_reportable 
@@ -1182,7 +964,6 @@ struct Batch
 	    	
 	  	// Tree of Fam
 	  	// Pass 1  
-	  	const string pointMutParent ("POINT_MUTATION");
 	    {
 	    	if (verbose ())
 	    		cout << "Reading " << famFName << " Pass 1 ..." << endl;
@@ -1191,6 +972,10 @@ struct Batch
 	  	    try
   	  	  {
   	  	    trim (f. line);
+  	  	    if (   f. line. empty () 
+  	  	        || f. line [0] == '#'
+  	  	       )
+  	  	      continue;
   	      //cout << f. line << endl; 
   	  	    const string famId               (findSplit (f. line, '\t'));
   	  	    const string parentFamId         (findSplit (f. line, '\t'));
@@ -1200,7 +985,6 @@ struct Batch
   	  	    const double tc2 = str2<double>  (findSplit (f. line, '\t'));
   	  	    BlastRule completeBR;
   	  	    BlastRule partialBR;
-  			  #if VER >= 3			    
             completeBR. ident           = str2<double> (findSplit (f. line, '\t')); 
             completeBR. target_coverage = str2<double> (findSplit (f. line, '\t')); 
             completeBR. ref_coverage    = str2<double> (findSplit (f. line, '\t')); 
@@ -1213,15 +997,12 @@ struct Batch
     		    toProb (partialBR.  ident);
     		    toProb (partialBR.  target_coverage);
     		    toProb (partialBR.  ref_coverage);
-          #endif
   	  	    const uchar reportable = (uchar) str2<int> (findSplit (f. line, '\t'));
   	  	    QC_ASSERT (reportable <= 2);
   	  	    const string type     (findSplit (f. line, '\t'));
   	  	    const string subtype  (findSplit (f. line, '\t'));
   	  	    const string classS   (findSplit (f. line, '\t'));
   	  	    const string subclass (findSplit (f. line, '\t'));
-  	  	    if (parentFamId == pointMutParent)
-  	  	      continue;
   	  	    const auto fam = new Fam (famId, genesymbol, hmm, tc1, tc2, completeBR, partialBR, type, subtype, classS, subclass, f. line, reportable);
   	  	    if (famId2fam [famId])
   	  	      throw runtime_error ("Family " + famId + " is duplicated");
@@ -1242,10 +1023,12 @@ struct Batch
 	  	  {
 	  	    trim (f. line);
 	  	  //cout << f. line << endl;  
+	  	    if (   f. line. empty () 
+	  	        || f. line [0] == '#'
+	  	       )
+	  	      continue;
 	  	    const Fam* child = famId2fam [findSplit (f. line, '\t')];
 	  	    const string parentFamId (findSplit (f. line, '\t'));
-	  	    if (parentFamId == pointMutParent)
-	  	      continue;
 	  	    ASSERT (child);
 	  	    const Fam* parent = nullptr;
 	  	    if (! parentFamId. empty ())
@@ -1267,35 +1050,54 @@ struct Batch
 	  	  QC_ASSERT (roots == 1);
 	  	}
 	  	
-
 	    if (! organism. empty ())
 	    {
 	    	if (verbose ())
-	    		cout << "Reading " << point_mut << endl;
-	      LineInput f (point_mut);
+	    		cout << "Reading " << mutation_tab << endl;
+	      LineInput f (mutation_tab);
 	      Istringstream iss;
 	  	  while (f. nextLine ())
 	  	  {
-	  	  	string organism_, accession, geneMutation, geneMutationGen, classS, subclass, name;
+	  	    if (isLeft (f. line, "#"))
+	  	      continue;
+	  	  	string organism_, accession, geneMutation, classS, subclass, name;
 					int pos;
-					char alleleChar;
     	  	iss. reset (f. line);
-	  	  	iss >> organism_ >> accession >> pos >> alleleChar >> geneMutation >> geneMutationGen >> classS >> subclass >> name;
-	  	  	ASSERT (pos > 0);
+	  	  	iss >> organism_ >> accession >> pos >> geneMutation >> classS >> subclass >> name;
+	  	  	QC_ASSERT (pos > 0);
 	  	  	replace (organism_, '_', ' ');
 	  	  	if (organism_ == organism)
-	  	  		accession2pointMuts [accession] << move (PointMut ((size_t) pos, alleleChar, geneMutation, geneMutationGen, classS, subclass, name));
+	  	  		accession2mutations [accession] << move (Mutation ((size_t) pos, geneMutation, classS, subclass, name));
 	  	  }
+	  	  if (verbose ())
+	  	    PRINT (accession2mutations. size ());
+	  	#if 0
 	  	  // PD-2008
-	  	  if (accession2pointMuts. empty ())
-	  	  	throw runtime_error ("No protein point mutations for organism " + strQuote (organism) + " found in the AMRFinder database. Please check the " + strQuote ("organism") + " option.");
-	  	  for (auto& it : accession2pointMuts)
+	  	  if (accession2mutations. empty ())
+	  	  	throw runtime_error ("No protein mutations for organism " + strQuote (organism) + " found in the AMRFinder database. Please check the " + strQuote ("organism") + " option.");
+	  	#endif
+	  	  for (auto& it : accession2mutations)
 	  	  {
 	  	  	it. second. sort ();
-	  	  //if (! it. second. isUniq ())
-	  	  	//throw runtime_error ("Duplicate mutations for " + it. first);
+	  	    if (! it. second. isUniq ())
+	  	  	  throw runtime_error ("Duplicate mutations for " + it. first);
 	  	  }
 	    }
+	  	  
+  	  if (! suppress_prot_FName. empty ())
+  	  {
+  	    ifstream f (suppress_prot_FName);  	  	    
+	  	  while (! f. eof ())
+	  	  {
+	  	    long gi = 0;
+	  	    f >> gi;
+	  	    ASSERT (gi >= 0);
+	  	    if (gi == 0)
+	  	      break;
+	  	    suppress_prots << gi;
+  	    }
+  	  }
+  	  suppress_prots. sort ();
 	  }
 private:
   static void toProb (double &x)
@@ -1311,28 +1113,29 @@ private:
   // Input: blastAls
   // Output: goodBlastAls
   {
-    goodBlastAls. clear ();
-	  for (const auto& blastAl : blastAls)
+    ASSERT (goodBlastAls. empty ());
+	  for (const BlastAlignment* blastAl : blastAls)
     {
-    	ASSERT (blastAl. good ());
+      ASSERT (blastAl);
+    	ASSERT (blastAl->good ());
   	  bool found = false;
-  	  for (const auto& goodBlastAl : goodBlastAls)
-  	    if (goodBlastAl. better (blastAl))
+  	  for (const BlastAlignment* goodBlastAl : goodBlastAls)
+  	    if (goodBlastAl->better (*blastAl))
 	      {
 	        found = true;
 	        break;
 	      }
 	    if (found)
 	      continue;	      
-      for (Iter<BlastAls> goodIter (goodBlastAls); goodIter. next ();)
-        if (blastAl. better (*goodIter))
+      for (Iter<VectorPtr<BlastAlignment>> goodIter (goodBlastAls); goodIter. next ();)
+        if (blastAl->better (**goodIter))
         {
           if (verbose ())
           {
             cout << "Bad:  ";
-            goodIter->saveText (cout); 
+            (*goodIter)->saveText (cout); 
             cout << "Good:  ";
-            blastAl. saveText (cout); 
+            blastAl->saveText (cout); 
           }
           goodIter. erase ();          
         }
@@ -1341,129 +1144,116 @@ private:
   	if (verbose ())
   	{
   	  cout << "# Best Blasts: " << goodBlastAls. size () << endl;
-  	  for (const auto& blastAl : goodBlastAls)
-  	    blastAl. saveText (cout);
+  	  for (const BlastAlignment* blastAl : goodBlastAls)
+  	    blastAl->saveText (cout);
   	}
-  #if 0
-	  for (const auto& blastAl1 : goodBlastAls)
-		  for (const auto& blastAl2 : goodBlastAls)
-		  {
-		  	cout << endl;
-		  	blastAl1. saveText (cout);
-		  	blastAl2. saveText (cout);
-		  	cout        << blastAl1. better (blastAl2) 
-		  	     << ' ' << blastAl2. better (blastAl1) 
-		  	     << endl;
-		  }
-	#endif
   }
 public:
 	  	  
 
-	void process (bool skip_hmm_check) 
+	void process (bool retainBlasts,
+	              bool skip_hmm_check) 
   // Input: blastAls, domains, hmmAls
 	// Output: goodBlastAls
 	{
     // Use BlastAlignment.cdss
-    for (Iter<BlastAls> iter (blastAls); iter. next ();)
-      if (! iter->good ())
+    for (Iter<VectorOwn<BlastAlignment>> iter (blastAls); iter. next ();)
+      if (! (*iter)->good ())
       {
         if (verbose ())
         {
           cout << "Erased:" << endl;
-          iter->saveText (cout);
+          (*iter)->saveText (cout);
         }
-        iter. erase ();
+        delete iter. erase ();
       }
         
     // Group by targetName and process each targetName separately for speed ??    
 
-    blastParetoBetter ();
+    if (retainBlasts)
+      goodBlastAls = blastAls;
+    else
+      blastParetoBetter ();
 
-  #if 0
-    ??
-    // Cf. point_mut.cpp
-    FFOR (size_t, i, batch. blastAls. size ())
-    {
-      const BlastAlignment& blastAl1 = batch. blastAls [i];
-      for (const auto& it1 : blastAl1. targetPos2pointMut)
+    // Cf. dna_mutation.cpp
+    for (const BlastAlignment* blastAl1 : goodBlastAls)
+      for (const SeqChange& seqChange1 : blastAl1->seqChanges)
       {
-        const PointMut& pm1 = it1. second;
-        FFOR_START (size_t, j, i + 1, batch. blastAls. size ())
-        {
-          BlastAlignment& blastAl2 = batch. blastAls [j];
-          if (blastAl2. targetName == blastAl1. targetName)  
-            for (auto& it2 : blastAl2. targetPos2pointMut)
+        ASSERT (seqChange1. al == blastAl1);
+        ASSERT (seqChange1. mutation);
+        for (const BlastAlignment* blastAl2 : goodBlastAls)
+          if (   blastAl2->targetName   == blastAl1->targetName
+              && blastAl2->targetStrand == blastAl1->targetStrand
+              && blastAl2 != blastAl1
+             )  
+            for (Iter<Vector<SeqChange>> iter (var_cast (blastAl2) -> seqChanges); iter. next (); )
             {
-              PointMut& pm2 = it2. second;
-              if (verbose ())
-                cout        << blastAl2. targetName 
-                     << ' ' << it1. first 
-                     << ' ' << it2. first 
-                     << ' ' << pm1. geneMutationGen 
-                     << ' ' << pm2. geneMutationGen 
-                     << endl; 
-              if (   it1. first == it2. first
-                  && pm1. geneMutationGen == pm2. geneMutationGen
+              SeqChange& seqChange2 = *iter;
+              ASSERT (seqChange2. mutation);
+              ASSERT (seqChange2. al == blastAl2);
+              if (   seqChange1. start_target == seqChange2. start_target 
+                  && seqChange1. better (seqChange2)
                  )
-                pm2 = PointMut ();
+                iter. erase ();
             }
-        }
-      }
-    }
-  #endif
+      }    
 
     // HMM: Pareto-better()  
-    HmmAls goodHmmAls; 
-    FOR (unsigned char, criterion, 2)
+    VectorPtr<HmmAlignment> goodHmmAls;  goodHmmAls. reserve (hmmAls. size ());
     {
-      // hmmAls --> goodHmmAls
-      goodHmmAls. clear ();
-  	  for (const auto& hmmAl : hmmAls)
+      VectorPtr<HmmAlignment> hmmAls_ (hmmAls);
+      FOR (unsigned char, criterion, 2)
       {
-      	ASSERT (hmmAl. good ());
-    	  bool found = false;
-    	  for (const auto& goodHmmAl : goodHmmAls)
-    	    if (goodHmmAl. better (hmmAl, criterion))
-  	      {
-  	        found = true;
-  	        break;
-  	      }
-  	    if (found)
-  	      continue;  
-        for (Iter<HmmAls> goodIter (goodHmmAls); goodIter. next ();)
-          if (hmmAl. better (*goodIter, criterion))
-            goodIter. erase ();
-        goodHmmAls << hmmAl;
-      }
-      //
-      hmmAls = goodHmmAls;
-      if (verbose ())
-      {
-        cout << "Pareto-better HMMs: (Criterion " << (int) criterion << "): " << hmmAls. size () << endl;
-        for (const HmmAlignment& al : hmmAls)
+        // hmmAls_ --> goodHmmAls
+        ASSERT (goodHmmAls. empty ());
+    	  for (const HmmAlignment* hmmAl : hmmAls_)
         {
-          al. saveText (cout);
-          cout << endl;
+          ASSERT (hmmAl);
+        	ASSERT (hmmAl->good ());
+      	  bool found = false;
+      	  for (const HmmAlignment* goodHmmAl : goodHmmAls)
+      	    if (goodHmmAl->better (*hmmAl, criterion))
+    	      {
+    	        found = true;
+    	        break;
+    	      }
+    	    if (found)
+    	      continue;  
+          for (Iter<VectorPtr<HmmAlignment>> goodIter (goodHmmAls); goodIter. next ();)
+            if (hmmAl->better (**goodIter, criterion))
+              goodIter. erase ();
+          goodHmmAls << hmmAl;
         }
+        if (verbose ())
+        {
+          cout << "Pareto-better HMMs: (Criterion " << (int) criterion << "): " << goodHmmAls. size () << endl;
+          for (const HmmAlignment* al : goodHmmAls)
+          {
+            al->saveText (cout);
+            cout << endl;
+          }
+        }
+        //
+        if (criterion < 1)
+          hmmAls_ = move (goodHmmAls);
       }
     }
 
     // PD-741
   	if (hmmExist && ! skip_hmm_check)
-      for (Iter<BlastAls> iter (goodBlastAls); iter. next ();)
+      for (Iter<VectorPtr<BlastAlignment>> iter (goodBlastAls); iter. next ();)
         if (   /*! iter->refExactlyMatched () */
-               ! iter->isPointMut ()
-        	  && iter->targetProt
-        	  && iter->pIdentity () < 0.98 - frac_delta  // PAR  // PD-1673
-            && ! iter->partial ()
+               ! (*iter) -> isMutation ()
+        	  && (*iter) -> targetProt
+        	  && (*iter) -> pIdentity () < 0.98 - frac_delta  // PAR  // PD-1673
+            && ! (*iter) -> partial ()
            )
-	        if (const Fam* fam = iter->getFam () -> getHmmFam ())  
+	        if (const Fam* fam = (*iter) -> getFam () -> getHmmFam ())  
 	        {
 	          bool found = false;
-	      	  for (const auto& hmmAl : goodHmmAls)
-	            if (   iter->targetName == hmmAl. sseqid
-	                && fam == hmmAl. fam
+	      	  for (const HmmAlignment* hmmAl : goodHmmAls)
+	            if (   (*iter) -> targetName == hmmAl->sseqid
+	                && fam == hmmAl->fam
 	               )
 	            {
 	              found = true;
@@ -1474,7 +1264,7 @@ public:
 	            if (verbose ())
 	            {
                 cout << "HMM-wrong:  ";
-                iter->saveText (cout); 
+                (*iter) -> saveText (cout); 
               }
 	            iter. erase ();
 	          }
@@ -1482,18 +1272,18 @@ public:
   	if (verbose ())
   	  cout << "# Best Blasts left: " << goodBlastAls. size () << endl;
 
-    for (Iter<HmmAls> hmmIt (goodHmmAls); hmmIt. next ();)
-  	  for (const auto& blastAl : goodBlastAls)
-  	    if (blastAl. better (*hmmIt))
+    for (Iter<VectorPtr<HmmAlignment>> hmmIt (goodHmmAls); hmmIt. next ();)
+  	  for (const BlastAlignment* blastAl : goodBlastAls)
+  	    if (blastAl->better (**hmmIt))
 	      {
           hmmIt. erase ();
 	        break;
 	      }
 
     // PD-2783
-    for (Iter<BlastAls> blastIt (goodBlastAls); blastIt. next ();)
-  	  for (const auto& hmmAl : goodHmmAls)
-  	    if (hmmAl. better (*blastIt))
+    for (Iter<VectorPtr<BlastAlignment>> blastIt (goodBlastAls); blastIt. next ();)
+  	  for (const HmmAlignment* hmmAl : goodHmmAls)
+  	    if (hmmAl->better (**blastIt))
 	      {
           blastIt. erase ();
 	        break;
@@ -1502,24 +1292,21 @@ public:
     // Output 
     
     // goodHmmAls --> goodBlastAls
-  	for (const auto& hmmAl : goodHmmAls)
+  	for (const HmmAlignment* hmmAl : goodHmmAls)
   	{
-  	  ASSERT (hmmAl. blastAl. get ());
-  	  goodBlastAls << * hmmAl. blastAl. get ();
+  	  ASSERT (hmmAl->blastAl. get ());
+  	  goodBlastAls << hmmAl->blastAl. get ();
   	}
   
-  //blastAls = move (goodBlastAls);
-  //blastParetoBetter ();  
-  
-    goodBlastAls. sort ();
+    goodBlastAls. sort (BlastAlignment::less);
 
     if (verbose ())
     {
 	    cout << endl << "After process():" << endl;
-		  for (const auto& blastAl : goodBlastAls)
+		  for (const BlastAlignment* blastAl : goodBlastAls)
 		  {
-		    blastAl. saveText (cout);
-		    cout << "# Point mutations: " << blastAl. pointMuts. size () << endl;
+		    blastAl->saveText (cout);
+		    cout << "# Mutations: " << blastAl->seqChanges. size () << endl;
 		  }
 		}
 	}
@@ -1532,14 +1319,14 @@ public:
     {
     	// Cf. BlastAlignment::saveText()
 	    TabDel td;
-	    td << "Protein identifier";  // targetName  // PD-2534
+	    td << "Protein identifier";  // targetName  // PD-2534  // 1
 	    if (cdsExist)  
 	      // Contig
-	      td << "Contig id"
-	         << "Start"    // targetStart
-	         << "Stop"     // targetStop
-	         << "Strand";  // targetStrand
-	    td << (print_fam ? "FAM.id" : "Gene symbol")
+	      td << "Contig id"                                     // 2
+	         << "Start"    // targetStart                       // 3
+	         << "Stop"     // targetEnd                         // 4
+	         << "Strand";  // targetStrand                      // 5
+	    td << (print_fam ? "FAM.id" : "Gene symbol")            // 6
 	       << "Sequence name"
 	       << "Scope"  // PD-2825
 	       // PD-1856
@@ -1554,8 +1341,8 @@ public:
 	       << "Reference sequence length"         // refLen
 	       << "% Coverage of reference sequence"  // queryCoverage
 	       << "% Identity to reference sequence"  
-	       << "Alignment length"                  // length
-	       << "Accession of closest sequence"     // accessionProt
+	       << "Alignment length"                  // targetSeq. size ()
+	       << "Accession of closest sequence"     // refAccession
 	       << "Name of closest sequence"
 	       //
 	       << "HMM id"
@@ -1565,20 +1352,28 @@ public:
 	    	if (useCrossOrigin)
 	      	 td << "Cross-origin length";
 	    os << td. str () << endl;
-      if (point_mut_all. get ())
-        *point_mut_all << td. str () << endl;
+      if (mutation_all. get ())
+        *mutation_all << td. str () << endl;
 	  }
 
-  	for (const auto& blastAl : goodBlastAls)
+  	for (const BlastAlignment* blastAl : goodBlastAls)
   	{
-   	  blastAl. qc ();
-   	  if (blastAl. isPointMut ())
-  	  	if (blastAl. pointMuts. empty ())
+  	  ASSERT (blastAl);
+   	  if (blastAl->isMutation ())
+  	  	if (blastAl->seqChanges. empty ())
   	  	  ;
   	  	else
-      	  blastAl. saveText (os);
-   	  else if (blastAl. getFam () -> reportable >= reportable_min)
-    	  blastAl. saveText (os);
+  	  	{
+      	  blastAl->saveText (os);
+       	  blastAl->qc ();
+      	}
+   	  else if (   blastAl->getFam () -> reportable >= reportable_min
+   	           && ! suppress_prots. containsFast (blastAl->gi)
+   	          )
+   	  {
+    	  blastAl->saveText (os);
+     	  blastAl->qc ();
+    	}
     }
 	}
 
@@ -1587,12 +1382,12 @@ public:
 	void printTargetIds (ostream &os) const
 	{
 		ASSERT (os. good ());
-  	for (const auto& blastAl : goodBlastAls)
-  	  if (   blastAl. targetProt
-  	  	  && ! blastAl. isPointMut ()
-  	  	  && blastAl. getFam () -> reportable >= reportable_min
+  	for (const BlastAlignment* blastAl : goodBlastAls)
+  	  if (   blastAl->targetProt
+  	  	  && ! blastAl->isMutation ()
+  	  	  && blastAl->getFam () -> reportable >= reportable_min
   	  	 )
-        os << blastAl. targetName << endl;
+        os << blastAl->targetName << endl;
 	}
 };
 
@@ -1610,31 +1405,11 @@ HmmAlignment::HmmAlignment (const string &line,
   //                                                        --- full sequence ---  --- best 1 domain --
   //     target name  accession  query name     accession   E-value  score     bias     E-value  score  bias   exp reg clu  ov env dom rep inc description of target
   iss >> sseqid >>    dummy      >> dummy      >> hmm >>    dummy >> score1 >> dummy >> dummy >> score2;
-  ASSERT (score1 > 0);
-  ASSERT (score2 > 0)
+  QC_ASSERT (score1 > 0);
+  QC_ASSERT (score2 > 0)
   find (batch. hmm2fam, hmm, fam);
-}
-
-
-
-HmmAlignment::HmmAlignment (const HmmAlignment &other)
-: sseqid (other. sseqid)
-, score1 (other. score1)
-, score2 (other. score2)
-, fam    (other. fam)
-, blastAl (new BlastAlignment (* other. blastAl. get ()))
-{}
-
-
-
-HmmAlignment HmmAlignment::operator= (const HmmAlignment &other)
-{
-  sseqid = other. sseqid;
-  score1 = other. score1;
-  score2 = other. score2;
-  fam    = other. fam;
-  blastAl. reset (new BlastAlignment (* other. blastAl. get ()));
-  return *this;
+  if (! fam)
+    throw runtime_error ("No family for HMM " + hmm);
 }
 
 
@@ -1696,18 +1471,20 @@ struct ThisApplication : Application
     {
       // Input
       addKey ("fam", "Table FAM");
-      const string blastFormat ("qseqid sseqid length nident qstart qend qlen sstart send slen sseq qseq. qseqid format: gi|Protein accession|fusion part|# fusions|FAM.id|FAM.class|Product name");
+      const string blastFormat (string (Alignment::format) + ". qseqid format: gi|Protein accession|fusion part|# fusions|FAM.id|FAM.class|Product name");
       addKey ("blastp", "blastp output in the format: " + blastFormat);  
       addKey ("blastx", "blastx output in the format: " + blastFormat);  
       addKey ("gff", ".gff assembly file");
       addKey ("gff_match", ".gff-FASTA matching file for \"locus_tag\": \"<FASTA id> <locus_tag>\"");
       addFlag ("bed", "Browser Extensible Data format of the <gff> file");
+      addFlag ("pgap", "Protein, genomic and GFF files are created by the NCBI PGAP");
       addKey ("dna_len", "File with lines: <dna id> <dna length>");
       addKey ("hmmdom", "HMM domain alignments");
       addKey ("hmmsearch", "Output of hmmsearch");
-      addKey ("organism", "Taxonomy group for point mutations");
-      addKey ("point_mut", "Point mutation table");
-      addKey ("point_mut_all", "File to report all target positions of reference point mutations");
+      addKey ("organism", "Taxonomy group for mutations");
+      addKey ("mutation", "Mutations table");
+      addKey ("mutation_all", "File to report all target positions of reference mutations");
+      addKey ("suppress_prot", "File with protein GIs to suppress");
       addKey ("ident_min", "Min. identity to the reference protein (0..1). -1 means use a curated threshold if it exists and " + toString (ident_min_def) + " otherwise", "-1");
       addKey ("coverage_min", "Min. coverage of the reference protein (0..1) for partial hits", toString (partial_coverage_min_def));
       addFlag ("skip_hmm_check", "Skip checking HMM for a BLAST hit");
@@ -1721,9 +1498,9 @@ struct ThisApplication : Application
       // Testing
       addFlag ("nosame", "Exclude the same reference ptotein from the BLAST output (for testing)"); 
       addFlag ("noblast", "Exclude the BLAST output (for testing)"); 
-    #ifdef SVN_REV
-      version = SVN_REV;
-    #endif
+      addFlag ("nohmm", "Exclude the HMMer output (for testing)"); 
+      addFlag ("retain_blasts", "Retain all blast hits (for testing)");
+ 	    version = SVN_REV;  
     }
 
 
@@ -1738,12 +1515,14 @@ struct ThisApplication : Application
     const string gffFName             = getArg ("gff");
     const string gffMatchFName        = getArg ("gff_match");
     const bool   bedP                 = getFlag ("bed");
+    const bool   pgap                 = getFlag ("pgap");
     const string dnaLenFName          = getArg ("dna_len");
     const string hmmDom               = getArg ("hmmdom");
     const string hmmsearch            = getArg ("hmmsearch");  
-    const string organism             = getArg ("organism");  
-    const string point_mut            = getArg ("point_mut");  
-    const string point_mut_all_FName  = getArg ("point_mut_all");
+          string organism             = getArg ("organism");  
+    const string mutation_tab         = getArg ("mutation");  
+    const string mutation_all_FName   = getArg ("mutation_all");
+    const string suppress_prot_FName  = getArg ("suppress_prot");
           double ident_min            = str2<double> (getArg ("ident_min"));  
     const double partial_coverage_min = str2<double> (getArg ("coverage_min"));  
     const bool   skip_hmm_check       = getFlag ("skip_hmm_check"); 
@@ -1755,13 +1534,17 @@ struct ThisApplication : Application
     const bool   report_core_only     = getFlag ("core");
     const bool   nosame               = getFlag ("nosame");
     const bool   noblast              = getFlag ("noblast");
+    const bool   nohmm                = getFlag ("nohmm");
+    const bool   retainBlasts         = getFlag ("retain_blasts");
     
-    ASSERT (hmmsearch. empty () == hmmDom. empty ());
-    IMPLY (! outFName. empty (), ! blastpFName. empty ());
-    IMPLY (! gffFName. empty (), ! blastpFName. empty ());
+    replace (organism, '_', ' ');
+    
+    QC_ASSERT (hmmsearch. empty () == hmmDom. empty ());
+    QC_IMPLY (! outFName. empty (), ! blastpFName. empty ());
+    QC_IMPLY (! gffFName. empty (), ! blastpFName. empty ());
     if (! blastpFName. empty () && ! blastxFName. empty () && gffFName. empty ())
     	throw runtime_error ("If BLASTP and BLASTX files are present then a GFF file must be present");
-       	
+       			  
     
     if (ident_min == -1.0)
       ident_min = ident_min_def;
@@ -1775,7 +1558,7 @@ struct ThisApplication : Application
     	
     if (partial_coverage_min > complete_coverage_min_def)
       throw runtime_error ("-coverage_min must be less than " + toString (complete_coverage_min_def) + " - threshod for complete matches");
-
+      
 
     defaultCompleteBR = BlastRule (ident_min, complete_coverage_min_def);  
     defaultPartialBR  = BlastRule (ident_min, partial_coverage_min);
@@ -1786,11 +1569,11 @@ struct ThisApplication : Application
                || ! gffFName. empty ();
 
 
-    if (! point_mut_all_FName. empty ())
-      point_mut_all. reset (new OFStream (point_mut_all_FName));
+    if (! mutation_all_FName. empty ())
+      mutation_all. reset (new OFStream (mutation_all_FName));
       
 
-    Batch batch (famFName, organism, point_mut, non_reportable, report_core_only);  
+    Batch batch (famFName, organism, mutation_tab, suppress_prot_FName, non_reportable, report_core_only);  
   
   
     // Input 
@@ -1809,22 +1592,17 @@ struct ThisApplication : Application
     	      if (verbose ())
     	        cout << f. line << endl;  
     	    }
-    	    BlastAlignment al (f. line, true);
-    	    al. qc ();  
-    	    if (nosame && toString (al. gi) == al. targetName)
+    	    auto al = new BlastAlignment (f. line, true);
+    	    al->qc ();  
+    	    if (nosame && toString (al->gi) == al->targetName)
     	      continue;
-    	    if (al. good ())
-    	      batch. blastAls << move (al);
+    	    if (al->good ())
+    	      batch. blastAls << al;
     	    else
-      	    { ASSERT (! al. refExactlyMatched ());
-      	      if (false)
-      	      {
-      	        al. saveText (cout);
-      	        cout << al. targetName << endl;
-      	        cout << al. pIdentity () << ' ' << al. refCoverage () << ' ' << al. targetCoverage () << endl;
-      	        ERROR;
-      	      }
-      	    }
+    	    { 
+    	      ASSERT (! al->refExactlyMatched ());
+    	      delete al;
+    	    }
     	  }
     	}
 
@@ -1838,14 +1616,17 @@ struct ThisApplication : Application
     	      if (verbose ())
     	        cout << f. line << endl;  
     	    }
-    	    BlastAlignment al (f. line, false);
-    	    al. qc ();  
-    	    if (nosame && toString (al. gi) == al. targetName)
+    	    auto al = new BlastAlignment (f. line, false);
+    	    al->qc ();  
+    	    if (nosame && toString (al->gi) == al->targetName)
     	      continue;
-    	    if (al. good ())
-    	      batch. blastAls << move (al);
+    	    if (al->good ())
+    	      batch. blastAls << al;
     	    else
-      	    { ASSERT (! al. refExactlyMatched ()); }
+      	  { 
+      	    ASSERT (! al->refExactlyMatched ()); 
+      	    delete al;
+      	  }
     	  }
     	}
     }
@@ -1853,65 +1634,69 @@ struct ThisApplication : Application
   	  cout << "# Good Blasts: " << batch. blastAls. size () << endl;
   	
   
-    // batch.domains
-    if (! hmmDom. empty ())
+    if (! nohmm)
     {
-    	batch. hmmExist = true;
-      LineInput f (hmmDom);
-  	  while (f. nextLine ())
-  	  {
-  	    trim (f. line);
-  	    if (   f. line. empty () 
-  	        || f. line [0] == '#'
-  	       )
-  	      continue;
-  	    const HmmAlignment::Domain domain (f. line, batch);
-  	  }
+      // batch.domains
+      if (! hmmDom. empty ())
+      {
+      	batch. hmmExist = true;
+        LineInput f (hmmDom);
+    	  while (f. nextLine ())
+    	  {
+    	    trim (f. line);
+    	    if (   f. line. empty () 
+    	        || f. line [0] == '#'
+    	       )
+    	      continue;
+    	    const HmmAlignment::Domain domain (f. line, batch);
+    	  }
+      }
+
+      // batch.hmmAls 
+    	// HmmAlignment::good()
+    	if (! hmmsearch. empty ())  // redundant file ??
+    	{
+        LineInput f (hmmsearch);
+    	  while (f. nextLine ())
+    	  {
+    	    if (verbose ())
+    	      cout << f. line << endl;  
+    	    if (f. line. empty () || f. line [0] == '#')
+    	      continue;
+    	    auto hmmAl = new HmmAlignment (f. line, batch);
+    	    if (! hmmAl->good ())
+    	    {
+    	      if (verbose ())
+    	      {
+    	        cout << "  Bad HMM: " << endl;
+    	        hmmAl->saveText (cout);
+    	      }
+    	      delete hmmAl;
+    	    	continue;
+    	    }
+    	    auto al = new BlastAlignment (*hmmAl);
+  	  	  hmmAl->blastAl. reset (al);
+  	  	  if (verbose ())
+  	  	    cout << al->targetName << " " << al->gene << endl;  
+  	  	  const HmmAlignment::Domain domain = batch. domains [HmmAlignment::Pair (al->targetName, al->gene)];
+  	  	  if (! domain. hmmLen)  
+  	  	    continue;  // domain does not exist
+  	  	/*al->refLen      = domain. hmmLen;
+  	  	  al->refStart    = domain. hmmStart;
+  	  	  al->refEnd      = domain. hmmStop; */
+  	  	  al->targetLen   = domain. seqLen;
+  	  	  al->targetStart = domain. seqStart;
+  	  	  al->targetEnd   = domain. seqStop;
+  	  	  al->setTargetAlign ();
+  	  	  ASSERT (! al->refExactlyMatched ());
+  	  	  ASSERT (! al->partial ());
+  	  	  al->qc ();
+  	      batch. hmmAls << hmmAl;
+    	  }
+    	}
     }
-
-
-    // batch.hmmAls 
-  	// HmmAlignment::good()
-  	if (! hmmsearch. empty ())  // redundant file ??
-  	{
-      LineInput f (hmmsearch);
-  	  while (f. nextLine ())
-  	  {
-  	    if (verbose ())
-  	      cout << f. line << endl;  
-  	    if (f. line. empty () || f. line [0] == '#')
-  	      continue;
-  	    HmmAlignment hmmAl (f. line, batch);
-  	    if (! hmmAl. good ())
-  	    {
-  	      if (verbose ())
-  	      {
-  	        cout << "  Bad HMM: " << endl;
-  	        hmmAl. saveText (cout);
-  	      }
-  	    	continue;
-  	    }
-  	    auto al = new BlastAlignment (hmmAl);
-	  	  hmmAl. blastAl. reset (al);
-	  	  if (verbose ())
-	  	    cout << al->targetName << " " << al->gene << endl;  
-	  	  const HmmAlignment::Domain domain = batch. domains [HmmAlignment::Pair (al->targetName, al->gene)];
-	  	  if (! domain. hmmLen)  
-	  	    continue;  // domain does not exist
-	  	/*al->refLen      = domain. hmmLen;
-	  	  al->refStart    = domain. hmmStart;
-	  	  al->refStop     = domain. hmmStop; */
-	  	  al->targetLen   = domain. seqLen;
-	  	  al->targetStart = domain. seqStart;
-	  	  al->targetStop  = domain. seqStop;
-	  	  al->setTargetAlign ();
-	  	  ASSERT (! al->refExactlyMatched ());
-	  	  al->qc ();
-	      batch. hmmAls << move (hmmAl);
-  	  }
-  	}
-  	if (verbose ())
-  	  cout << "# Good HMMs: " << batch. hmmAls. size () << endl;
+   	if (verbose ())
+   	  cout << "# Good initial HMMs: " << batch. hmmAls. size () << endl;
   
   
     // For Batch::report()
@@ -1926,7 +1711,7 @@ struct ThisApplication : Application
     	else
     	{
 	    	Annot::Gff gff;
-		    annot. reset (new Annot (gff, gffFName, ! gffMatchFName. empty ()));
+		    annot. reset (new Annot (gff, gffFName, false, ! gffMatchFName. empty (), pgap));
 		  }
 		  ASSERT (annot. get ());
 	    map<string/*seqid*/,string/*locusTag*/> seqId2locusTag;
@@ -1959,7 +1744,7 @@ struct ThisApplication : Application
   	        iss. reset (f. line);
   	        len = 0;
   	        iss >> contig >> len;
-  	        ASSERT (len);
+  	        QC_ASSERT (len);
   	        contig2len [contig] = len;
   	      }
   	      for (const auto& it : annot->prot2cdss)
@@ -1968,16 +1753,27 @@ struct ThisApplication : Application
   	            var_cast (locus). contigLen = contig2len [locus.contig];
   	    }
   	  }
-    	for (auto& al : batch. blastAls)
-    	  if (al. targetProt)
-    	  	al. setCdss (seqId2locusTag, * annot. get ());
-	    for (auto& hmmAl : batch. hmmAls)
-        var_cast (hmmAl. blastAl. get ()) -> setCdss (seqId2locusTag, * annot. get ());;
+    	for (const BlastAlignment* al : batch. blastAls)
+    	  if (al->targetProt)
+    	  	var_cast (al) -> setCdss (seqId2locusTag, * annot. get ());
+	    for (const HmmAlignment* hmmAl : batch. hmmAls)
+        var_cast (hmmAl->blastAl. get ()) -> setCdss (seqId2locusTag, * annot. get ());;
     }
     
     
     // Output
-    batch. process (skip_hmm_check);    
+    batch. process (retainBlasts, skip_hmm_check);    
+    if (pgap)  // GP-28123
+    {
+      const string gnlPrefix ("gnl|");
+      for (const BlastAlignment* al : batch. goodBlastAls)
+        for (Locus& cds : var_cast (al) -> cdss)
+        {
+          QC_ASSERT (! isLeft (cds. contig, gnlPrefix));
+          if (contains (cds. contig, '|'))
+            cds. contig = gnlPrefix + cds. contig;
+        }
+    }
     batch. report (cout);
     if (! outFName. empty ())
     {
