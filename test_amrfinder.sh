@@ -1,8 +1,16 @@
+<<<<<<< HEAD
 #!/bin/bash -x
+=======
+#!/bin/bash
+>>>>>>> upstream/master
 
 if [ "$1" == "path" ]
 then
     echo "Testing amrfinder command in your \$PATH"
+<<<<<<< HEAD
+=======
+    which amrfinder
+>>>>>>> upstream/master
     AMRFINDER=amrfinder
 else
     echo "Testing ./amrfinder"
@@ -15,6 +23,10 @@ then
     echo "Test failed: "
     echo "  $AMRFINDER --plus -p test_prot.fa -g test_prot.gff -O Escherichia > test_prot.got"
     echo "  diff test_prot.expected test_prot.got "
+<<<<<<< HEAD
+=======
+    diff test_prot.expected test_prot.got
+>>>>>>> upstream/master
     exit 1
 fi
 
@@ -24,6 +36,10 @@ then
     echo "Test failed: "
     echo "  $AMRFINDER --plus -n test_dna.fa -O Escherichia --mutation_all test_dna_mut_all.got > test_dna.got"
     echo "  diff test_dna.expected test_dna.got"
+<<<<<<< HEAD
+=======
+    diff test_dna.expected test_dna.got
+>>>>>>> upstream/master
     exit 1
 fi
 if ! diff -q test_dna_mut_all.expected test_dna_mut_all.got
@@ -31,6 +47,10 @@ then
 	echo "Test failed: "
     echo "  $AMRFINDER --plus -n test_dna.fa -O Escherichia --mutation_all test_dna_mut_all.got > test_dna.got"
     echo "  diff test_dna_mut_all.expected test_dna_mut_all.got"
+<<<<<<< HEAD
+=======
+    diff test_dna_mut_all.expected test_dna_mut_all.got
+>>>>>>> upstream/master
     exit 1
 fi
 
@@ -40,6 +60,10 @@ then
     echo "Test failed: "
     echo "  $AMRFINDER --plus -n test_dna.fa -p test_prot.fa -g test_prot.gff -O Escherichia > test_both.got" 
     echo "  diff test_both.expected test_both.got "
+<<<<<<< HEAD
+=======
+    diff test_both.expected test_both.got
+>>>>>>> upstream/master
     exit 1
 fi
 

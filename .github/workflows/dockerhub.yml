@@ -1,6 +1,11 @@
 name: dockerhub image
 
 on: 
+<<<<<<< HEAD
+=======
+    schedule:
+        - cron: '15 4 * * *' # 4:15am everyday    
+>>>>>>> upstream/master
     workflow_dispatch:
     repository_dispatch:
         types: [docker-test, install-test]
@@ -14,6 +19,10 @@ jobs:
           echo "GITHUB_REPOSTIORY=${GITHUB_REPOSITORY}"
           echo "GITHUB_SHA=${GITHUB_SHA}"
           amrfinder --version
+<<<<<<< HEAD
+=======
+          apt-get update
+>>>>>>> upstream/master
           apt-get install curl
           # For docker always read off of master branch
           #BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/"
