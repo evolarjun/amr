@@ -1,10 +1,11 @@
 name: Docker test 2
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    workflow_dispatch:
+    push:
+        branches: [ master ]
+    repository_dispatch:
+        types: [docker-test, install-test]
 
 jobs:
 
@@ -16,5 +17,10 @@ jobs:
     - uses: actions/checkout@v2
     - name: Test docker
       run: docker run hello-world
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    - name: Version
+      run: docker run ncbi/amr amrfinder --version
+    - name: Protein
+      run: docker run --rm -v ${PWD}:/data ncbi/amr amrfinder --plus -n test_dna.fa -O Escherichia --mutation_all test_dna_mut_all.got > test_dna.got
+    - name: Check results
+      run: diff test_dna.expected test_dna.got
+
