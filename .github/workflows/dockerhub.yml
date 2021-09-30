@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     container: ncbi/amr:latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Test docker
         run: docker run hello-world
       - run: |
