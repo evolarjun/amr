@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     container: ncbi/amr:latest
     steps:
+      - name: Test docker
+        run: docker run hello-world
       - run: |
           echo "GITHUB_REF=${GITHUB_REF}"
           echo "GITHUB_REPOSTIORY=${GITHUB_REPOSITORY}"
