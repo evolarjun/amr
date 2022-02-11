@@ -3,8 +3,11 @@ name: binary tarball
 on: 
     workflow_dispatch:
     release:
+        branches: [ master ]
     repository_dispatch:
         types: [linux-binary-test, install-test]
+    schedule: 
+        - cron: '15  15  *   *   *' # 3:15pm every day
 jobs:
   build:
     runs-on: ubuntu-latest

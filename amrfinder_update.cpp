@@ -158,10 +158,17 @@ string Curl::read (const string &url)
 
 
 
+#undef HTTPS  // Otherwise: ftp
+
+
 #if 0
   #define URL "https://ftp.ncbi.nlm.nih.gov/pathogen/Technical/AMRFinder_technical/test_database/"
 #else
-  #define URL "https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinderPlus/database/"
+  #ifdef HTTPS
+    #define URL "https://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinderPlus/database/"  
+  #else
+    #define URL "ftp://ftp.ncbi.nlm.nih.gov/pathogen/Antimicrobial_resistance/AMRFinderPlus/database/"  
+  #endif
 #endif
 
 
@@ -172,30 +179,46 @@ string getLatestMinor (Curl &curl)
   StringVector dir (curl. read (URL), '\n', true);
   if (verbose ())
   {
-    save (cout, dir, '\t'); 
+    save (cout, dir, '\n'); 
     cout << endl;
   }
     
   Vector<SoftwareVersion> vers;  
   for (string& line : dir)
+  #ifdef HTTPS
     if (isLeft (line, "<a href="))
-    {
-      const size_t pos1 = line. find ('>');
-      QC_ASSERT (pos1 != string::npos);
-      line. erase (0, pos1 + 1);
-
-      const size_t pos2 = line. find ("/<");
-      QC_ASSERT (pos2 != string::npos);
-      line. erase (pos2);
-      
-  	  istringstream iss (line);
   	  try 
   	  {
+        const size_t pos1 = line. find ('>');
+        QC_ASSERT (pos1 != string::npos);
+        line. erase (0, pos1 + 1);
+
+        const size_t pos2 = line. find ("/<");
+        QC_ASSERT (pos2 != string::npos);
+        line. erase (pos2);
+        
+    	  istringstream iss (line);
   		  SoftwareVersion ver (iss, true);
   		  vers << move (ver);
   		}
   		catch (...) {}
+  #else
+    if (! contains (line, " -> "))
+    {
+      trimTrailing (line);
+      const size_t pos = line. rfind (' ');
+      if (pos != string::npos)
+      {
+    	  istringstream iss (line. substr (pos + 1));
+    	  try 
+    	  {
+    		  SoftwareVersion ver (iss, true);
+    		  vers << move (ver);
+    		}
+  		  catch (...) {}    		
+      }
     }
+  #endif
   if (vers. empty ())
     return string ();
     
@@ -212,12 +235,13 @@ string getLatestDataVersion (Curl &curl,
   StringVector dir (curl. read (URL + minor + "/"), '\n', true);
   if (verbose ())
   {
-    save (cout, dir, '\t');
+    save (cout, dir, '\n');
     cout << endl;
   }
     
   Vector<DataVersion> dataVersions;  
   for (string& line : dir)
+  #ifdef HTTPS
     if (isLeft (line, "<a href="))
       try
       {
@@ -230,15 +254,27 @@ string getLatestDataVersion (Curl &curl,
         line. erase (pos2);
         
     	  istringstream iss (line);
+  		  DataVersion dv (iss);
+  		  dataVersions << move (dv);
+    	}
+  		catch (...) {}
+  #else
+    if (! contains (line, " -> "))
+    {
+      trimTrailing (line);
+      const size_t pos = line. rfind (' ');
+      if (pos != string::npos)
+      {
+    	  istringstream iss (line. substr (pos + 1));
+    	  try 
     	  {
     		  DataVersion dv (iss);
     		  dataVersions << move (dv);
     		}
-    	}
-  		catch (const exception &e) 
-  		{
-  		  throw runtime_error ("Cannot get latest data version: " + minor + "\n\n" + e. what ());
-  		}
+  		  catch (...) {}    		
+      }
+    }
+  #endif
   if (dataVersions. empty ())
     return string ();
     

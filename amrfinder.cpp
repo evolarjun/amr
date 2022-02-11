@@ -33,6 +33,11 @@
 *               cat, cp, cut, head, ln, mv, sort, tail
 *
 * Release changes:
+*   3.10.21 01/31/2022 PD-4071  https --> ftp
+*   3.10.20 01/13/2022 PD-4069  "Vulnerability Disclosure" at the AMRFinder download web page
+*   3.10.19 12/08/2021          $PATH is printed is case of error
+*   3.10.18 11/01/2021 PD-4013  multi-domain protein hits
+*   3.10.17 09/27/2021          program "dna_mutation" is found if the DNA file is empty
 *   3.10.16 09/22/2021 PD-3958  point mutations oiverride HMM hits
 *   3.10.15 08/23/2021          -mt_mode 1 is used only for multi-FASTA files: SB-3162
 *   3.10.14 08/19/2021 PD-3918  BLAST output to stderr is not checked
@@ -330,7 +335,7 @@ struct ThisApplication : ShellApplication
         if (contains (f. line, "-num_threads "))
           num_threadsP = true;
         if (contains (f. line, "-mt_mode "))
-          mt_modeP = true;;
+          mt_modeP = true;
       }
     }
     
@@ -766,6 +771,7 @@ struct ThisApplication : ShellApplication
     prog2dir ["fasta_check"]   = execDir;
     prog2dir ["fasta2parts"]   = execDir;
     prog2dir ["amr_report"]    = execDir;	
+		prog2dir ["dna_mutation"]  = execDir;
     prog2dir ["fasta_extract"] = execDir;
     
     
@@ -898,7 +904,7 @@ struct ThisApplication : ShellApplication
         		  createDirectory (tmp + ".hmmsearch_dir");
         		  createDirectory (tmp + ".dom_dir");
               Threads th (threads_max - 1, true);  
-        		  FileItemGenerator fig (false, true, false, tmp + ".hmm_chunk");
+        		  FileItemGenerator fig (false, true, false, tmp + ".hmm_chunk", false);
         		  string item;
         		  while (fig. next (item))
           			th. exec (fullProg ("hmmsearch") 
@@ -962,7 +968,7 @@ struct ThisApplication : ShellApplication
           		  createDirectory (tmp + ".tblastn_dir");
           		  createDirectory (tmp + ".tblastn_dir.err");
                 Threads th (threads_max - 1, true);  
-          		  FileItemGenerator fig (false, true, false, tmp + ".AMRProt_chunk");
+          		  FileItemGenerator fig (false, true, false, tmp + ".AMRProt_chunk", false);
           		  string item;
           		  while (fig. next (item))
             			th. exec (fullProg ("tblastn") + "  -db " + tmp + ".nucl  -query " + tmp + ".AMRProt_chunk/" + item + "  "
@@ -981,7 +987,6 @@ struct ThisApplication : ShellApplication
           if (blastn)
       		{
       			findProg ("blastn");
-      			prog2dir ["dna_mutation"] = execDir;
       			stderr << "Running blastn...\n";
        			const Chronometer_OnePass cop ("blastn", cerr, false, qc_on && ! quiet);
       			exec (fullProg ("blastn") + " -query " + dna + " -db " + tmp + ".db/AMR_DNA-" + organism1 + " -evalue 1e-20  -dust no  " 

@@ -233,6 +233,7 @@ namespace
 //const char* shell    = getenv ("SHELL");
 	const char* shell    = getenv ("SHELL");	
 	const char* pwd      = getenv ("PWD");
+	const char* path     = getenv ("PATH");
 #endif
   const string errorS ("*** ERROR ***");
   if (contains (msg, errorS))  // msg already is the result of errorExit()
@@ -252,6 +253,7 @@ namespace
   	    << "HOSTNAME: " << (hostname ? hostname : "?") << endl
   	    << "SHELL: " << (shell ? shell : "?") << endl
   	    << "PWD: " << (pwd ? pwd : "?") << endl
+  	    << "PATH: " << (path ? path : "?") << endl
       #endif
   	    << "Progam name:  " << programName << endl
   	    << "Command line: " << getCommandLine () << endl;
@@ -2215,10 +2217,26 @@ void TextTable::setHeader ()
         if (getDecimals (field, hasPoint, decimals))
           h. scientific = true;
         maximize<streamsize> (h. decimals, decimals);
-        maximize (h. len_max, field. size () + (size_t) (h. decimals - decimals) + (! hasPoint));
       }
     }
   }
+
+  // Header::len_max for numeric
+  for (const StringVector& row : rows)
+    FFOR (RowNum, i, row. size ())
+    {
+      const string& field = row [i];
+      if (field. empty ())
+        continue;
+      Header& h = header [i];
+      if (h. numeric)
+      {
+        bool hasPoint = false;
+        streamsize decimals = 0;
+        getDecimals (field, hasPoint, decimals);
+        maximize (h. len_max, field. size () + (size_t) (h. decimals - decimals) + (! hasPoint));
+      }
+    }
 }
 
 
@@ -2329,7 +2347,7 @@ void TextTable::printHeader (ostream &os) const
 
 
 
-size_t TextTable::col2index_ (const string &columnName) const
+TextTable::ColNum TextTable::col2num_ (const string &columnName) const
 { 
   FFOR (size_t, i, header. size ())
     if (header [i]. name == columnName)
@@ -2341,7 +2359,7 @@ size_t TextTable::col2index_ (const string &columnName) const
 
 int TextTable::compare (const StringVector& row1,
                         const StringVector& row2,
-                        size_t column) const
+                        ColNum column) const
 {
   if (header [column]. numeric)
   {
@@ -2368,19 +2386,19 @@ int TextTable::compare (const StringVector& row1,
 
 void TextTable::filterColumns (const StringVector &newColumnNames)
 {
-  const Vector<size_t> indexes (columns2indexes (newColumnNames));
+  const Vector<ColNum> colNums (columns2nums (newColumnNames));
 
   {  
-    Vector<Header> newHeader;  newHeader. reserve (indexes. size ());
-    for (const size_t i : indexes)
+    Vector<Header> newHeader;  newHeader. reserve (colNums. size ());
+    for (const ColNum i : colNums)
       newHeader << header [i];
     header = move (newHeader);
   }
 
   for (StringVector& row : rows)
   {
-    StringVector newRow;  newRow. reserve (indexes. size ());
-    for (const size_t i : indexes)
+    StringVector newRow;  newRow. reserve (colNums. size ());
+    for (const ColNum i : colNums)
       newRow << row [i];
     row = move (newRow);
   }
@@ -2392,12 +2410,12 @@ void TextTable::group (const StringVector &by,
                        const StringVector &sum,
                        const StringVector &aggr)
 {
-  const Vector<size_t> byIndex   (columns2indexes (by));
-  const Vector<size_t> sumIndex  (columns2indexes (sum));
-  const Vector<size_t> aggrIndex (columns2indexes (aggr));
+  const Vector<ColNum> byIndex   (columns2nums (by));
+  const Vector<ColNum> sumIndex  (columns2nums (sum));
+  const Vector<ColNum> aggrIndex (columns2nums (aggr));
   
   const auto lt = [&byIndex,this] (const StringVector &a, const StringVector &b) 
-                    { for (const size_t i : byIndex) 
+                    { for (const ColNum i : byIndex) 
                         switch (this->compare (a, b, i))
                         { case -1: return true;
                           case  1: return false;
@@ -2439,16 +2457,16 @@ void TextTable::group (const StringVector &by,
 
 
 
-void TextTable::merge (RowNum toIndex,
-                       RowNum fromIndex,
-                       const Vector<size_t> &sum,
-                       const Vector<size_t> &aggr) 
+void TextTable::merge (RowNum toRowNum,
+                       RowNum fromRowNum,
+                       const Vector<ColNum> &sum,
+                       const Vector<ColNum> &aggr) 
 {
-  ASSERT (toIndex < fromIndex);
-  StringVector& to = rows [toIndex];
-  const StringVector& from = rows [fromIndex];
+  ASSERT (toRowNum < fromRowNum);
+  StringVector& to = rows [toRowNum];
+  const StringVector& from = rows [fromRowNum];
 
-  for (const size_t i : sum)
+  for (const ColNum i : sum)
   {
     const Header& h = header [i];
     ASSERT (h. numeric);
@@ -2458,7 +2476,7 @@ void TextTable::merge (RowNum toIndex,
     to [i] = oss. str ();
   }
 
-  for (const size_t i : aggr)
+  for (const ColNum i : aggr)
   {
     constexpr char sep = ',';
     if (from [i]. empty ())
@@ -2478,29 +2496,29 @@ void TextTable::merge (RowNum toIndex,
 
 
 
-void TextTable::indexes2values (const Vector<size_t> &indexes,
+void TextTable::colNums2values (const Vector<ColNum> &colNums,
                                 RowNum row_num,
                                 StringVector &values) const
 {
   values. clear ();
-  values. reserve (indexes. size ());
+  values. reserve (colNums. size ());
   const StringVector& row = rows [row_num];    
-  FFOR (size_t, i, indexes. size ())
-    values << row [indexes [i]];
+  FFOR (ColNum, i, colNums. size ())
+    values << row [colNums [i]];
 }
 
 
 
-TextTable::RowNum TextTable::find (const Vector<size_t> &indexes,
+TextTable::RowNum TextTable::find (const Vector<ColNum> &colNums,
                                    const StringVector &targetValues,
                                    RowNum row_num_start) const
 {
-  ASSERT (indexes. size () == targetValues. size ());
+  ASSERT (colNums. size () == targetValues. size ());
   ASSERT (row_num_start != no_index);
   StringVector values;
   FOR_START (RowNum, i, row_num_start, rows. size ())
   {
-    indexes2values (indexes, i, values);
+    colNums2values (colNums, i, values);
     if (values == targetValues)
       return i;
   }
@@ -2509,21 +2527,48 @@ TextTable::RowNum TextTable::find (const Vector<size_t> &indexes,
 
 
 
+
+// TextTable::Key
+
+
 TextTable::Key::Key (const TextTable &tab,
                      const StringVector &columns)
-: indexes (tab. columns2indexes (columns))
+: colNums (tab. columns2nums (columns))
 {
   data. rehash (tab. rows. size ());
   StringVector values;  
   FFOR (RowNum, i, tab. rows. size ())
   {
-    tab. indexes2values (indexes, i, values);
+    tab. colNums2values (colNums, i, values);
+    for (const string& s : values)
+      if (s. empty ())
+        throw Error (tab, "Empty value in key, in row " + to_string (i + 1));
     if (data. find (values) != data. end ())
       throw Error (tab, "Duplicate key " + values. toString (",") + " for the key on " + columns. toString (","));
     ASSERT (i != no_index);
     data [values] = i;
   }  
 }
+
+
+
+
+// TextTable::Index
+
+
+TextTable::Index::Index (const TextTable &tab,
+                         const StringVector &columns)
+: colNums (tab. columns2nums (columns))
+{
+  data. rehash (tab. rows. size ());
+  StringVector values;  
+  FFOR (RowNum, i, tab. rows. size ())
+  {
+    tab. colNums2values (colNums, i, values);
+    data [values] << i;
+  }  
+}
+
 
 
 
@@ -2831,14 +2876,17 @@ size_t Offset::size = 0;
 FileItemGenerator::FileItemGenerator (size_t progress_displayPeriod,
                                       bool isDir_arg,
                                       bool large_arg,
-                                      const string& fName_arg)
+                                      const string& fName_arg,
+                                      bool skipHeader_arg)
 : ItemGenerator (0, progress_displayPeriod)
 , isDir (isDir_arg)
 , large (large_arg)
 , dirName (fName_arg)
 , fName (fName_arg)
+, skipHeader (skipHeader_arg)
 { 
-  IMPLY (large, isDir);
+  QC_IMPLY (large, isDir);
+  QC_IMPLY (skipHeader, ! isDir);
   
   trimSuffix (dirName,  "/");
 
@@ -2879,7 +2927,14 @@ FileItemGenerator::FileItemGenerator (size_t progress_displayPeriod,
 bool FileItemGenerator::next (string &item)
 { 
   if (! large)
+  {
+    if (skipHeader)
+    {
+      next_ (item);
+      skipHeader = false;
+    }
     return next_ (item);
+  }
 
   for (;;)
   {
@@ -2888,7 +2943,7 @@ bool FileItemGenerator::next (string &item)
       string subDir;
       if (! next_ (subDir))
         return false;
-      fig. reset (new FileItemGenerator (0, true, false, dirName + "/" + subDir));
+      fig. reset (new FileItemGenerator (0, true, false, dirName + "/" + subDir, false));
     }
     ASSERT (fig. get ());
     if (fig->next (item))
@@ -2918,7 +2973,8 @@ bool FileItemGenerator::next_ (string &item)
   if (item. empty () && f. eof ())
     return false;
 
-  prog (item);
+  if (! skipHeader)
+    prog (item);
 	return true;
 }    
 
