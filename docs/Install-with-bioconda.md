@@ -67,7 +67,7 @@ See [[Test your installation]] for testing instructions
 ## To update your installation
 
 ```bash
-conda update -y -c bioconda ncbi-amrfinderplus
+conda update -y -c bioconda -c conda-forge ncbi-amrfinderplus
 ```
 
 ## Email

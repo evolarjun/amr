@@ -325,12 +325,12 @@ nimIJ_hmm                contigX       1  501      + nimIJ         NimIJ family 
   - INTERNAL_STOP - Translated blast reveals a stop codon that occurred before the end of the protein. This can only be assessed if the `-n <nucleotide_fasta>` option is used.
   - POINT - Point mutation identified by blast.  
 - Target length - The length of the query protein or gene. The length will be in amino-acids if the reference sequence is a protein, but nucleotide if the reference sequence is nucleotide.
-- Reference sequence length - The length of the Reference protein or nucleotide in the database (NA if HMM-only hit).
-- % Coverage of reference sequence - % of reference covered by blast hit (NA if HMM-only hit).
-- % Identity to reference sequence - % amino-acid identity to reference protein or nucleotide identity for nucleotide reference. (NA if HMM-only hit).
-- Alignment length - Length of BLAST alignment in amino-acids or nucleotides if nucleotide reference (NA if HMM-only hit).
-- Accession of closest protein - RefSeq accession for reference hit by BLAST (NA if HMM-only hit). Note that only one reference will be chosen if the blast hit is equidistant from multiple references. For point mutations the reference is the sensitive "wild-type" allele, and the element symbol describes the specific mutation. Check the [Reference Gene Catalog](https://www.ncbi.nlm.nih.gov/pathogens/refgene/) for more information on specific mutations or reference genes.
-- Name of closest protein - Full name assigned to the closest reference hit (NA if HMM-only hit).
+- Reference sequence length - The length of the Reference protein or nucleotide in the database if a blast alignment was detected, otherwise NA.
+- % Coverage of reference sequence - % of reference covered by blast hit if a blast alignment was detected, otherwise NA.
+- % Identity to reference sequence - % amino-acid identity to reference protein or nucleotide identity for nucleotide reference if a blast alignment was detected, otherwise NA.
+- Alignment length - Length of BLAST alignment in amino-acids or nucleotides if nucleotide reference if a blast alignment was detected, otherwise NA.
+- Accession of closest protein - RefSeq accession for reference hit by BLAST if a blast alignment was detected otherwise NA. Note that only one reference will be chosen if the blast hit is equidistant from multiple references. For point mutations the reference is the sensitive "wild-type" allele, and the element symbol describes the specific mutation. Check the [Reference Gene Catalog](https://www.ncbi.nlm.nih.gov/pathogens/refgene/) for more information on specific mutations or reference genes.
+- Name of closest protein - Full name assigned to the closest reference hit if a blast alignment was detected, otherwise NA.
 - HMM id - Accession for the HMM, NA if none.
 - HMM description - The family name associated with the HMM, NA if none.
 

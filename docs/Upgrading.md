@@ -1,4 +1,4 @@
-Database Upgrades
+Database Updates
 =================
 
 This should be as easy as running:
@@ -12,6 +12,10 @@ Some users have reported errors with the automatic updating. You can automatical
 To use that directory use the `-d` option: 
 
     amrfinder -d <database_directory>/latest  ...
+
+Note that if you're running under sudo your path might change (e.g., https://github.com/ncbi/amr/issues/74). The following should work:
+
+    sudo PATH=$PATH amrfinder --force_update
 
 Software Upgrades
 =================

@@ -41,7 +41,7 @@ The AMRFinderPlus database is publicly available at https://ftp.ncbi.nlm.nih.gov
  Files on the FTP site are in the structure:
 
     |- /AMRFinderPlus
-         |- data
+         |- data  # depricated
               |- latest
               |- YYYY-MM-DD.#
                    |- fam.tab
@@ -52,7 +52,7 @@ The AMRFinderPlus database is publicly available at https://ftp.ncbi.nlm.nih.gov
                    ...
               |- YYYY-MM-DD.#
                 ...
-         |- database
+         |- database 
              |- <database format version> e.g., 3.10
                    |- YYYY-MM-DD.#
                         |- fam.tab
@@ -371,7 +371,7 @@ Fields are separated by tab characters and columns are as follows:
 7. __Blast rule cutoff: Complete target identity__: This is overridden by the
    `--ident_min` option. "0.00" means default behavior (90%, though there will
    usually be a curated HMM in those cases). Note that this cutoff is used when
-   >= 90% of the reference protein is covered by the hit
+   \>= 90% of the reference protein is covered by the hit
 8. __Blast rule cutoff: Complete target coverage__
 9. __Blast rule cutoff: Complete reference coverage__
 10. __Blast rule cutoff: Partial identity__ This is overridden by the
@@ -541,7 +541,7 @@ are naturally-occurring. The antibiotic affected by the AMR protein does not
 need to be used clinically as an antibiotic in human patients. Our collection
 includes proteins that contribute to resistance quaternary ammonium compounds
 (which are not antibiotics, strictly speaking) and to antibiotics whose use is
-restricted to agricultural or veterinary applications, e.q. olaquindox. Source
+restricted to agricultural or veterinary applications, e.g. olaquindox. Source
 databases we drew from (e.g. CARD) contained a large number of intrinsic
 proteins that contribute weakly to resistance (loss-of-function mutants show
 increased susceptibility), and that may contribute more strongly after

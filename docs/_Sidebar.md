@@ -18,7 +18,8 @@
 * [[Common errors|Running AmrfinderPlus#common errors and what they mean]]
 * [[Known issues|Running AMRFinderPlus#known issues]]
 * [[Tips and tricks]]
-* [[Upgrading]]
+* [[Database updates|Upgrading#database-updates]]
+* [[Software upgrades|Upgrading#software-upgrades]]
 
 **[[Interpreting results]]**  
 * [[Genotypes vs. Phenotypes|Interpreting results#genotype-vs-phenotype]]
