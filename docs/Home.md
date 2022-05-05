@@ -1,3 +1,7 @@
+layout: page
+title: "PAGE TITLE"
+permalink: /
+
 # NCBI Antimicrobial Resistance Gene Finder Plus (AMRFinderPlus)
 
 ## Overview for AMRFinderPlus 3.10
