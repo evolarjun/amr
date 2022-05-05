@@ -1,5 +1,5 @@
 layout: page
-title: "PAGE TITLE"
+title: "AMRFinderPlus"
 permalink: /
 
 # NCBI Antimicrobial Resistance Gene Finder Plus (AMRFinderPlus)
@@ -14,8 +14,10 @@ factors, biocide, heat, acid, and metal resistance genes.
 
 By default the results returned by AMRFinderPlus will be similar to those returned by the original AMRFinder and include antimicrobial resistance genes of known function.  Use the [--plus option](Running-AMRFinderPlus#option--plus) to include results that include additional classes of genes like virulence factors, biocide, heat, acid, and metal resistance genes.
 
-Run amrfinder -u to get the most
-recent release version of the database before using. See [[New in AMRFinderPlus]] and the [list of releases](https://github.com/ncbi/amr/releases) for more information on what's new.
+Run amrfinder -u to get the most recent release version of the database before
+using. See [New in AMRFinderPlus](New-in-AMRFinderPlus.md) and the [list of
+releases](https://github.com/ncbi/amr/releases) for more information on what's
+new.
 
 <!--
 
@@ -39,11 +41,11 @@ Other options: [ABRicate](https://github.com/tseemann/abricate), [Ariba](https:/
 AMRFinder requires BLAST and HMMER. We provide instructions using BioConda to
 install the prerequisites.
 
-[[Installation Instructions|Installing-AMRFinder]]
+[Installation Instructions](Installing-AMRFinder.md]
 
 # Running AMRFinderPlus
 
-[[Examples|Running AMRFinderPlus#examples]]<br>
+[Examples](Running-AMRFinderPlus#examples)<br>
 [[Usage (syntax/options)|Running AMRFinderPlus#usage]]<br>
 [[Tips and tricks]]
 
