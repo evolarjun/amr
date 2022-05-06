@@ -1,6 +1,11 @@
 layout: page
 title: "AMRFinderPlus"
 permalink: /
+sidebar:
+  - title: "Upgrading"
+    text: "descriptive_text"
+    nav: Upgrading
+
 
 # NCBI Antimicrobial Resistance Gene Finder Plus (AMRFinderPlus)
 
