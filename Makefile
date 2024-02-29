@@ -81,11 +81,11 @@ CXX=g++
 COMPILE.cpp= $(CXX) $(CPPFLAGS) $(SVNREV) $(DBDIR) $(TEST_UPDATE_DB) -c 
 
 
-.PHONY: all clean install release 
+.PHONY: all clean install release stxtyper
 
 BINARIES= amr_report amrfinder amrfinder_index amrfinder_update fasta_check fasta_extract fasta2parts gff_check dna_mutation mutate
 
-all:	$(BINARIES)
+all:	$(BINARIES) stxtyper
 
 release: clean
 	svnversion . > version.txt
@@ -151,11 +151,13 @@ mutateOBJS=mutate.o common.o alignment.o seq.o
 mutate:	$(mutateOBJS)
 	$(CXX) -o $@ $(mutateOBJS)
 
-
+stxtyper:
+	$(MAKE) -C stxtyper 
 
 clean:
 	rm -f *.o
 	rm -f $(BINARIES)
+	$(MAKE) -C stxtyper clean
 
 install:
 	@if [ ! -e $(DESTDIR)$(bindir) ]; \
@@ -163,6 +165,7 @@ install:
 		mkdir -p $(DESTDIR)$(bindir); \
 	fi
 	$(INSTALL) $(BINARIES) $(DESTDIR)$(bindir)
+	make -C stxtyper install PREFIX=$(PREFIX) bindir=$(bindir)
 
 # amrfinder binaries for github binary release
 GITHUB_FILE=amrfinder_binaries_v$(VERSION_STRING)
