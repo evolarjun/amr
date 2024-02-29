@@ -1,0 +1,3 @@
+[submodule "stxtyper"]
+	path = stxtyper
+	url = git@github.com:evolarjun/stxtyper.git
