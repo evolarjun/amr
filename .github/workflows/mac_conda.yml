@@ -49,7 +49,7 @@ jobs:
           echo CONDA_PREFIX = $CONDA_PREFIX
           bash ./test_amrfinder.sh -p 
   conda_macos_x86_64:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
     - name: Install conda because built-in conda is borked
