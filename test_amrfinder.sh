@@ -64,7 +64,7 @@ else
 
     if [ $? != 0 ]
     then
-        echo "WARNING: Could not download new test data."
+        echo "${red}WARNING: Could not download new test data.${reset}"
         echo "Will attempt to use test data in $PWD."
         echo "Test data included with installation may not match the latest database release."
     fi
