@@ -33,6 +33,8 @@
 * Dependencies: NCBI BLAST, HMMer, libcurl, gunzip (optional)
 *
 * Release changes:
+*   4.2.7   01/15/2026 PD-5549  bug when there is an HMM hit with no BLAST hit
+*   4.2.6   12/05/2025          to avoid code=18 error "transfer closed with NNN bytes remaining to read": curl_easy_setopt (eh, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0) 
 *   4.2.5   12/05/2025 PD-5507  add AMRProt-susceptible.fa to amrfinder_update.cpp
 *   4.2.4   12/02/2025 PD-5495  If set use CURL_CA_BUNDLE environment variable for certificate authorities
 *   4.2.3   10/16/2025 PD-5469  QC_ASSERT error messages of amrfinder_update.cpp are made human readable

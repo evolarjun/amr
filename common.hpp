@@ -615,8 +615,6 @@ inline bool isDelimiter (char c)
 inline bool isSpace (char c)
   { return c > '\0' && c <= ' ' && isspace (c); }
 
-string to_url (const string &s);
-
 
 // char*
 
@@ -980,8 +978,12 @@ inline string uchar2hex (uchar c)
     return res;
   }
  
-string unpercent (const string &s);
+string unPercent (const string &s);
   // '%HH' -> char
+
+string to_url (const string &s);
+
+string unHtml (const string &s);
 
 
 
@@ -2056,7 +2058,7 @@ struct Xml
     { 
       explicit XmlStream (const string &pathName)
         : OFStream (pathName)
-        { *this << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" << endl; }  
+        { *this << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl; }  
     };
     XmlStream os;
   public:
@@ -2446,8 +2448,10 @@ template <typename T>
     void eraseAt (size_t index)
       { eraseMany (index, index + 1); }
     void eraseMany (size_t from,
-                    size_t to)
-      { if (to < from)
+                    size_t to = no_index)
+      { if (to == no_index)
+          to = P::size ();
+        if (to < from)
           throw runtime_error ("Vector::eraseMany(): to < from");
         if (to == from)
           return;
@@ -2507,13 +2511,13 @@ template <typename T>
           return n;
         }
     template <typename Condition /*on index*/>
-      void filterIndex (const Condition cond)
+      void filterIndex (const Condition delCond)
         { size_t toDelete = 0;
           for (size_t i = 0, end_ = P::size (); i < end_; i++)
           { const size_t j = i - toDelete;
             if (j != i)
               (*this) [j] = std::move ((*this) [i]);
-            if (cond (j))
+            if (delCond (j))
               toDelete++;
           }
           while (toDelete)
@@ -2522,13 +2526,13 @@ template <typename T>
           }
         }
     template <typename Condition /*on value*/>
-      void filterValue (const Condition cond)
+      void filterValue (const Condition delCond)
         { size_t toDelete = 0;
           for (size_t i = 0, end_ = P::size (); i < end_; i++)
           { const size_t j = i - toDelete;
             if (j != i)
               (*this) [j] = std::move ((*this) [i]);
-            if (cond ((*this) [j]))
+            if (delCond ((*this) [j]))
               toDelete++;
           }
           while (toDelete)
@@ -2930,6 +2934,11 @@ template <typename T /* : Root */>
         { P::operator<< (std::move (other)); 
           return *this;
         }
+    VectorPtr<T> subvec (size_t from,
+                         size_t count = no_index) const
+      { return VectorPtr<T> (P::subvec (from, count)); }
+    void filterNull ()
+      { P::filterValue ([] (const T* t) { return ! t; }); }
   	void deleteData ()
   	  {	for (const T* t : *this)
 			    delete t;
