@@ -2,6 +2,12 @@ name: C++ CI
 
 on: 
     workflow_dispatch:
+      inputs:
+        debug_enabled:
+          type: boolean
+          description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+          required: false
+          default: false
     push:
     pull_request:
     repository_dispatch:
@@ -12,10 +18,13 @@ jobs:
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@v4
-    - name: prerequisites
-      run: |
-          sudo apt-get update
-          sudo apt-get install -y hmmer ncbi-blast+ git libcurl4-openssl-dev build-essential curl
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+      with:
+        detached: true
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-cpp
     - name: submodule checkout
       run: git submodule update --init --recursive
     - name: make
@@ -32,17 +41,20 @@ jobs:
       run: make github_binaries
     - uses: actions/upload-artifact@v4
       with:
-          name: release-binary
+          name: release-binary-linux-x86_64.tar.gz
           path: amrfinder_binaries_v*.tar.gz
   linux-arm64:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@v4
-    - name: prerequisites
-      run: |
-          sudo apt-get update
-          sudo apt-get install -y hmmer ncbi-blast+ git libcurl4-openssl-dev build-essential curl
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+      with:
+        detached: true
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-cpp
     - name: submodule checkout
       run: git submodule update --init --recursive
     - name: make
@@ -62,6 +74,6 @@ jobs:
         mv amrfinder_binaries_v$version.tar.gz amrfinder_binaries_linux_aarch64_v$version.tar.gz
     - uses: actions/upload-artifact@v4
       with:
-          name: release-binary-arm
+          name: release-binary-linux-arm64.tar.gz
           path: amrfinder_binaries_linux_aarch64_v*.tar.gz
 

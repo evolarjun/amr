@@ -1,6 +1,12 @@
 name: Mac bioconda
 on:
     workflow_dispatch:
+      inputs:
+        debug_enabled:
+          type: boolean
+          description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+          required: false
+          default: false
     schedule:
         - cron: '15 9 * * *' # 9:15am everyday
     repository_dispatch:
@@ -10,83 +16,57 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-    - name: Install conda because built-in conda is borked
-      run: |
-          curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
-          bash ./Miniconda3-latest-MacOSX-x86_64.sh -b -p /Users/runner/miniconda3
-    - name: Configure conda
-      run: |
-          source /Users/runner/miniconda3/bin/activate
-          conda init
-          # THIS DOESN"T WORK! Just install miniconda myself
-          # . $CONDA/bin/activate
-          conda config --add channels defaults
-          conda config --add channels bioconda
-          conda config --add channels conda-forge
-          # permissions are messed up on the mac runner
-          # Is this faster than installing miniconda myself?
-          # sudo chown -R 501:20 $CONDA
-          conda update conda
-    - name: Install AMRFinderPlus
-      run: |
-          source /Users/runner/miniconda3/bin/activate
-          conda install --update-deps -c bioconda -c conda-forge -y ncbi-amrfinderplus
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+      with:
+        detached: true
+    - uses: actions/checkout@v4
+    - name: Setup Conda and AMRFinderPlus
+      uses: ./.github/actions/setup-conda
     - name: Download AMRFinderPlus database
+      shell: bash -el {0}
       run: |
-          source /Users/runner/miniconda3/bin/activate
-          /Users/runner/miniconda3/bin/amrfinder -u
+          amrfinder -u
     - name: Software and DB version
+      shell: bash -el {0}
       run: |
-          source /Users/runner/miniconda3/bin/activate
           amrfinder --database_version
     - name: Download tests
       run: |
           BASE_URL=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/master
           curl --silent -L -O ${BASE_URL}/test_amrfinder.sh
     - name: Run tests
+      shell: bash -el {0}
       run: |
-          source /Users/runner/miniconda3/bin/activate
           echo CONDA_PREFIX = $CONDA_PREFIX
           bash ./test_amrfinder.sh -p 
   conda_macos_x86_64:
     runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
-    - name: Install conda because built-in conda is borked
-      run: |
-          curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
-          bash ./Miniconda3-latest-MacOSX-x86_64.sh -b -p /Users/runner/miniconda3
-    - name: Configure conda
-      run: |
-          source /Users/runner/miniconda3/bin/activate
-          conda init
-          # THIS DOESN"T WORK! Just install miniconda myself
-          # . $CONDA/bin/activate
-          conda config --add channels defaults
-          conda config --add channels bioconda
-          conda config --add channels conda-forge
-          # permissions are messed up on the mac runner
-          # Is this faster than installing miniconda myself?
-          # sudo chown -R 501:20 $CONDA
-          conda update conda
-    - name: Install AMRFinderPlus
-      run: |
-          source /Users/runner/miniconda3/bin/activate
-          conda install --update-deps -c bioconda -c conda-forge -y ncbi-amrfinderplus
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+      with:
+        detached: true
+    - uses: actions/checkout@v4
+    - name: Setup Conda and AMRFinderPlus
+      uses: ./.github/actions/setup-conda
     - name: Download AMRFinderPlus database
+      shell: bash -el {0}
       run: |
-          source /Users/runner/miniconda3/bin/activate
-          /Users/runner/miniconda3/bin/amrfinder -u
+          amrfinder -u
     - name: Software and DB version
+      shell: bash -el {0}
       run: |
-          source /Users/runner/miniconda3/bin/activate
           amrfinder --database_version
     - name: Download tests
       run: |
           BASE_URL=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/master
           curl --silent -L -O ${BASE_URL}/test_amrfinder.sh
     - name: Run tests
+      shell: bash -el {0}
       run: |
-          source /Users/runner/miniconda3/bin/activate
           echo CONDA_PREFIX = $CONDA_PREFIX
           bash ./test_amrfinder.sh -p

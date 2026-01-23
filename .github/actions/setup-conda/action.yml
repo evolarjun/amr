@@ -1,0 +1,16 @@
+name: 'Setup Conda and AMRFinderPlus'
+description: 'Sets up Micromamba env and installs ncbi-amrfinderplus'
+runs:
+  using: "composite"
+  steps:
+    - uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-name: amrfinder
+        create-args: >-
+          ncbi-amrfinderplus
+        condarc: |
+          channels:
+            - conda-forge
+            - bioconda
+            - defaults
+        init-shell: bash
