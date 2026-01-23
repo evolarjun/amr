@@ -25,11 +25,8 @@ jobs:
         detached: true
     - name: submodule checkout
       run: git submodule update --init --recursive
-    - name: prerequisites
-      run: |
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-          brew install blast
-          brew install hmmer
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-cpp
     - name: make
       run: make -j
     - name: download db
@@ -63,11 +60,8 @@ jobs:
         detached: true
     - name: submodule checkout
       run: git submodule update --init --recursive
-    - name: prerequisites
-      run: |
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-          brew install blast
-          brew install hmmer
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-cpp
     - name: make
       run: make -j
     - name: download db

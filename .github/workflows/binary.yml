@@ -25,10 +25,8 @@ jobs:
           if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
           with:
             detached: true
-        - name: prerequisites
-          run: |
-              sudo apt-get update
-              sudo apt-get install -y hmmer ncbi-blast+ curl build-essential
+        - name: Setup dependencies
+          uses: ./.github/actions/setup-cpp
         - name: download
           run: bash -x .github/workflows/get_binary_release.sh
         - name: Software and db version

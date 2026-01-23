@@ -23,10 +23,8 @@ jobs:
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
       with:
         detached: true
-    - name: prerequisites
-      run: |
-          sudo apt-get update
-          sudo apt-get install -y hmmer ncbi-blast+ git libcurl4-openssl-dev build-essential curl
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-cpp
     - name: submodule checkout
       run: git submodule update --init --recursive
     - name: make
@@ -55,10 +53,8 @@ jobs:
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
       with:
         detached: true
-    - name: prerequisites
-      run: |
-          sudo apt-get update
-          sudo apt-get install -y hmmer ncbi-blast+ git libcurl4-openssl-dev build-essential curl
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-cpp
     - name: submodule checkout
       run: git submodule update --init --recursive
     - name: make

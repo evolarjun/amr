@@ -24,60 +24,37 @@ jobs:
         detached: true
     - name: When was this run
       run: date
-    - name: configure conda
-      run: |
-          . $CONDA/bin/activate
-          conda config --add channels defaults
-          conda config --add channels bioconda
-          conda config --add channels conda-forge
-    - name: install AMRFinderPlus
-      run: |
-          . $CONDA/bin/activate
-          conda install --update-deps -c conda-forge -c bioconda -y ncbi-amrfinderplus
-          amrfinder --version
+    - name: Setup Conda and AMRFinderPlus
+      uses: ./.github/actions/setup-conda
     - name: download latest AMRFinderPlus database
+      shell: bash -el {0}
       run: |
-          source /usr/share/miniconda/bin/activate
           echo CONDA_PREFIX = ${CONDA_PREFIX}
-          /usr/share/miniconda/bin/amrfinder --force_update
+          amrfinder --force_update
     - name: Software and DB version
+      shell: bash -el {0}
       run: |
-          source /usr/share/miniconda/bin/activate
           amrfinder --database_version
     - name: download tests
       run: |
           BASE_URL=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/master
           curl --silent -L -O ${BASE_URL}/test_amrfinder.sh
     - name: run tests
+      shell: bash -el {0}
       run: |
-          source /usr/share/miniconda/bin/activate
           echo CONDA_PREFIX = $CONDA_PREFIX
           bash ./test_amrfinder.sh -p
   conda_linux_aarch64:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
-    - uses: conda-incubator/setup-miniconda@v3
-      with:
-        auto-update-conda: true
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
       with:
         detached: true
-    - name: When was this run
-      run: date
-    - name: configure conda
-      shell: bash -el {0}
-      run: |
-          conda config --add channels defaults
-          conda config --add channels bioconda
-          conda config --add channels conda-forge
-    - name: install AMRFinderPlus
-      shell: bash -el {0}
-      run: |
-          conda install --update-deps -c conda-forge -c bioconda -y ncbi-amrfinderplus
-          amrfinder --version
+    - name: Setup Conda and AMRFinderPlus
+      uses: ./.github/actions/setup-conda
     - name: download latest AMRFinderPlus database
       shell: bash -el {0}
       run: amrfinder --force_update

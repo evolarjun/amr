@@ -1,0 +1,16 @@
+name: 'Setup C++ CI dependencies'
+description: 'Installs dependencies for C++ CI'
+runs:
+  using: "composite"
+  steps:
+    - if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y hmmer ncbi-blast+ git libcurl4-openssl-dev build-essential curl
+      shell: bash
+    - if: runner.os == 'macOS'
+      run: |
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)" || true
+        brew install blast
+        brew install hmmer
+      shell: bash
