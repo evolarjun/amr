@@ -49,7 +49,7 @@ jobs:
           mv amrfinder_binaries_v$version.tar.gz amrfinder_binaries_macos_aarch64_v$version.tar.gz
     - uses: actions/upload-artifact@v4
       with:
-          name: release-binary
+          name: release-binary-macos-arm64.tar.gz
           path: amrfinder_binaries_macos_aarch64_v*.tar.gz
   macos_x86_64:
     runs-on: macos-15-intel
@@ -87,5 +87,5 @@ jobs:
           mv amrfinder_binaries_v$version.tar.gz amrfinder_binaries_macos_x86_64_v$version.tar.gz
     - uses: actions/upload-artifact@v4
       with:
-          name: release-binary
+          name: release-binary-macos-x86_64.tar.gz
           path: amrfinder_binaries_macos_x86_64_v*.tar.gz
