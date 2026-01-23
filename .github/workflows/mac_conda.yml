@@ -1,6 +1,12 @@
 name: Mac bioconda
 on:
     workflow_dispatch:
+      inputs:
+        debug_enabled:
+          type: boolean
+          description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+          required: false
+          default: false
     schedule:
         - cron: '15 9 * * *' # 9:15am everyday
     repository_dispatch:
@@ -10,6 +16,11 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+      with:
+        detached: true
     - name: Install conda because built-in conda is borked
       run: |
           curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
@@ -52,6 +63,11 @@ jobs:
     runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+      with:
+        detached: true
     - name: Install conda because built-in conda is borked
       run: |
           curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
