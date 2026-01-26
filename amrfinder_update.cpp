@@ -38,7 +38,6 @@
 
 
 // PAR
-#undef TEST_UPDATE  
 #define HTTPS 1   // 0: FTP
 
 

@@ -461,9 +461,9 @@ struct BlastAlignment final : Alignment
       {
         Hsp::operator= (*best);
         refAccession = best->refAccession;
+        sseqid = hmmAl_arg. sseqid;
+        finishHsp (false, false); 
       }
-      sseqid = hmmAl_arg. sseqid;
-      finishHsp (false, false);
       ASSERT (sProt);
       ASSERT (! allele ());
     }

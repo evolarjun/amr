@@ -200,7 +200,7 @@ size_t Seq::getTaxonStart (const string &s)
 
 
 
-long /*CSeq_id::TGi*/ Seq::getGi () const
+long /*TGi*/ Seq::getGi () const
 {
 	const char* prefix = "gi|";
 	size_t start = name. find (prefix, 0);
@@ -4704,6 +4704,8 @@ Hsp::Hsp (const string &blastLine,
 void Hsp::finishHsp (bool qStopCodon,
                      bool bacterialStartCodon)
 {
+  ASSERT (! qseq. empty ());
+  ASSERT (qseq. size () == sseq. size ());
   a2q = (aProt && ! qProt ? 3 : 1);
   a2s = (aProt && ! sProt ? 3 : 1);
 
