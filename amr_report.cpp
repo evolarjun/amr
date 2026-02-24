@@ -915,30 +915,25 @@ public:
             	               : "EXACT"  // PD-776
         	                 : partial ()
           	                 ? truncated (cds)
-          	                   ? partialContigEnd_Name  // PD-2267
-          	                   : partial_Name
+          	                   ? partialContigEnd_Method  // PD-2267
+          	                   : partial_Method
         	                   : "BLAST"
         	           );
       // PD-2088, PD-2320
       bool suffix = true;
 	    if (   (   method == "BLAST" 
-    	        || method == partial_Name
-    	        || method == partialContigEnd_Name
+    	        || method == partial_Method
+    	        || method == partialContigEnd_Method
     	       ) 
 	      //&& ! sProt  // Redundant
 	       )
 	    {
 	      if (sInternalStop)
 	      {
-	        method = internalStop_Name;	
+	        method = internalStop_Method;	
   	      suffix = false;
 	      }
 	    #if 0
-	      else if (findDisruption (Disruption::eFrameshift))
-	      {
-	        method = frameshift_Name;
-	        suffix = false;
-	      }
 	      else if (hasLongDisruption (10))  // PAR 
 	      {
 	        method = "DISRUPTED";
@@ -947,7 +942,11 @@ public:
 	    #endif
 	    }
 	    if (suffix && method != "HMM")
-	      method += (sProt ? "P" : "X");	  
+	      method += (sProt ? "P" : "X");	 
+	    if (   method == "BLASTX" 
+	        && findDisruption (Disruption::eFrameshift)
+	       )
+        method = frameshift_Method;
 	    return method;
 	  }
 	  // PD-736
@@ -1658,34 +1657,48 @@ private:
     VectorPtr<BlastAlignment> als;  
 
     VectorPtr<Hsp> origHsps;  origHsps. reserve (origAls. size ());
+    bool strongSusceptibleProt = false;
     for (const BlastAlignment* al : origAls)
     {
       ASSERT (al);
       if (   al->blastx ()
           && ! al->isMutationProt ()
-          && al->isStrongSusceptibleProt ()  
+        //&& al->isStrongSusceptibleProt ()  
          )
+      {
         origHsps << al;
+        if (al->isStrongSusceptibleProt ())
+          strongSusceptibleProt = true;
+      }
       else
         als << al;
     }
 
-    Hsp::Merge merge (origHsps, nullptr/*sm*/, 20, true/*bacteria*/);  // PAR
-    for (;;)
-    { 
-      const Hsp* origHsp = nullptr;
-      AlignScore score = - score_inf;
-      Hsp hsp (merge. get (origHsp, score)); 
-      if (hsp. empty ()) 
-        break; 
-      ASSERT (origHsp);
-      auto al = new BlastAlignment (* static_cast <const BlastAlignment*> (origHsp));
-      ASSERT (al->refMutation. empty ());
-      ASSERT (al->seqChanges. empty ());
-      blastAls << al;
-      * static_cast <Hsp*> (al) = std::move (hsp);
-      al->qc ();
-      als << al;
+    if (   origHsps. size () <= 1 
+        && ! strongSusceptibleProt
+       )
+      als = origAls;
+    else
+    {
+    //PRINT (origHsps. size ());  
+      Hsp::Merge merge (origHsps, nullptr/*sm*/, 20, true/*bacteria*/);  // PAR
+      for (;;)
+      { 
+        const Hsp* origHsp = nullptr;
+        AlignScore score = - score_inf;
+        Hsp hsp (merge. get (origHsp, score)); 
+        if (hsp. empty ()) 
+          break; 
+        ASSERT (origHsp);
+        auto al = new BlastAlignment (* static_cast <const BlastAlignment*> (origHsp));
+        ASSERT (al->refMutation. empty ());
+        ASSERT (al->seqChanges. empty ());
+        blastAls << al;
+        * static_cast <Hsp*> (al) = std::move (hsp);
+        al->qc ();
+      //PRINT (*al);  
+        als << al;
+      }
     }
 
     return als;

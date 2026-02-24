@@ -33,6 +33,8 @@
 * Dependencies: NCBI BLAST, HMMer, libcurl, gunzip (optional)
 *
 * Release changes:
+*   4.2.9   02/24/2026 PD-3547  method FRAMESHIFT
+*   4.2.8   01/28/2026          refactoring of AmrMutation::frameshift
 *   4.2.7   01/15/2026 PD-5549  bug when there is an HMM hit with no BLAST hit
 *   4.2.6   12/05/2025          to avoid code=18 error "transfer closed with NNN bytes remaining to read": curl_easy_setopt (eh, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0) 
 *   4.2.5   12/05/2025 PD-5507  add AMRProt-susceptible.fa to amrfinder_update.cpp

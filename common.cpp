@@ -3876,12 +3876,12 @@ void Application::addDefaultArgs ()
 	  if (threadsUsed)
 	    addKey ("threads", "Max. number of threads", "1", '\0', "THREADS");
 	  addFlag ("debug", "Integrity checks");
-    addKey ("log", "Error log file, appended, opened on application start", "", '\0', "LOG");
+    addKey ("log", "Error log file, appended, opened on application start. This option suppresses the deletion of the temporary files", "", '\0', "LOG");
     addFlag ("quiet", "Suppress messages to STDERR", 'q');
   }
 	else
 	{
-	  addFlag ("qc", "Integrity checks (quality control)");
+	  addFlag ("qc", "Additionally run quality control checks");
     addKey ("verbose", "Level of verbosity", "0");
     addFlag ("noprogress", "Turn off progress printout");
     addFlag ("profile", "Use chronometers to profile");

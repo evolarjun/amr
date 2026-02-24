@@ -64,8 +64,8 @@ struct AmrMutation final : Root
 	string gene;
 	int pos_std {0};  
 	size_t frameshift {no_index};
-	  // Position of '*' after getStop()
-	int frameshift_insertion {0};
+	  // = position of '*' - pos_real
+	int frameshift_insertion {0};  // redundant ??
 
 	// To be reported
 	// !empty()

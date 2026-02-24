@@ -184,8 +184,12 @@ void AmrMutation::qc () const
 	QC_ASSERT (! contains (allele,    '-'));
 	QC_ASSERT (! gene. empty ());
 	QC_ASSERT (! reference. empty ());  
-	QC_IMPLY (frameshift != no_index, ! allele. empty ());
-	QC_IMPLY (frameshift != no_index, pos_std >= 0);
+	if (frameshift != no_index)
+	{
+	  QC_ASSERT (reference. size () == 1);
+	  QC_ASSERT (allele.    size () == 1);
+	  QC_ASSERT (pos_std >= 0);
+	}
 	QC_ASSERT ((frameshift == no_index) == (frameshift_insertion == 0));
 	QC_IMPLY (frameshift_insertion, frameshift_insertion % 3);
 }
@@ -725,9 +729,9 @@ size_t Alignment::refMutation2refSeq_pos ()
 	    PRINT (sseq [i]);	    
 	  #endif
 	    ASSERT (refMutation. getStop ());
-	    if (pos == refMutation. getStop () - 1 + refMutation. frameshift)
+	    if (pos == refMutation. pos_real + refMutation. frameshift)
 	    {
-	      if (   qseq    [i] == '*'
+	      if (   qseq [i] == '*'
 	          && sseq [i] == '*'
 	         )
 	        return frameshift_i;

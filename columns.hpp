@@ -33,7 +33,7 @@
 
 
 
-// Columns
+// Column names
 // PD-5085
 constexpr const char* prot_colName = "Protein id";   // PD-2534  
 constexpr const char* contig_colName = "Contig id";
@@ -73,8 +73,8 @@ constexpr const char* disruption_delim = "_@";
 
 
 // Methods
-constexpr const char* frameshift_Name       = "FRAMESHIFT";
-constexpr const char* internalStop_Name     = "INTERNAL_STOP";
-constexpr const char* partial_Name          = "PARTIAL";
-constexpr const char* partialContigEnd_Name = "PARTIAL_CONTIG_END";
+constexpr const char* frameshift_Method       = "FRAMESHIFT";
+constexpr const char* internalStop_Method     = "INTERNAL_STOP";
+constexpr const char* partial_Method          = "PARTIAL";
+constexpr const char* partialContigEnd_Method = "PARTIAL_CONTIG_END";
 
