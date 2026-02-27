@@ -113,6 +113,8 @@ public:
 
   size_t getStop () const
     { return pos_real + reference. size (); }
+  bool isTerm () const
+    { return allele == "*"; }
   string wildtype () const
     { return gene + "_" + reference + to_string (pos_std + 1) + reference; }
   bool operator< (const AmrMutation &other) const;
@@ -173,7 +175,7 @@ struct SeqChange final : Root
   
   SeqChange () = default;
   explicit SeqChange (const Alignment* al_arg/*,
-             bool fromAllele_arg*/)
+                      bool fromAllele_arg*/)
     : al (al_arg)
   //, fromAllele (fromAllele_arg)
     {}

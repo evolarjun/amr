@@ -606,7 +606,10 @@ void Alignment::setSeqChanges (const Vector<AmrMutation> &refMutations,
 		#endif
 		  if (seqChange. matchesMutation (mut))
 		  {
-		    seqChange. mutations << & mut;
+		    if (   ! sInternalStop  
+		        || mut. isTerm ()
+		       )  // PD-3272
+		      seqChange. mutations << & mut;
 		  	if (verbose ())
 		  	{
 		  	  cout << "Found: ";
@@ -659,6 +662,7 @@ void Alignment::setSeqChanges (const Vector<AmrMutation> &refMutations,
   }
 	
 	seqChanges. sort ();
+	
 	if (verbose ())
 	{
 	  cout << endl;

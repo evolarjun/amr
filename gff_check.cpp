@@ -172,7 +172,7 @@ and for prodigal: <protein GFF id> is ID=<num> in the protein FASTA comment\n\
 	    			throw runtime_error (__FILE__ ": No protein identifier in: " + line_orig);
     			gffIds << gffId;
     			if (outF. is_open ())
-    				outF << fastaId << '\t' << gffId << endl;
+    				outF << fastaId << '\t' << gffId << '\n';
 			  }
 			  const size_t n = fastaIds. size ();
 			  fastaIds. sort ();
@@ -192,7 +192,11 @@ and for prodigal: <protein GFF id> is ID=<num> in the protein FASTA comment\n\
 			  ASSERT (gffIds. size () == fastaIds. size ());
 			}
 			if (verbose ())
+			{
 			  cout << "# Proteins in GFF: " << annot. prot2loci. size () << endl;
+			  for (const auto& it : annot. prot2loci)
+			    cout << it. first << endl;
+			}
 		  for (const string& seqid : gffIds)
 		  	if (! contains (annot. prot2loci, seqid))
 		  		throw runtime_error (__FILE__ ": Protein FASTA id " + strQuote (seqid) + " is not in the GFF file");
@@ -248,7 +252,7 @@ and for prodigal: <protein GFF id> is ID=<num> in the protein FASTA comment\n\
     			gffIds << gffId;
     			contigIds << contigId;
     			if (outF. is_open ())
-    				outF << contigId << '\t' << gffId << endl;
+    				outF << contigId << '\t' << gffId << '\n';
 	    	}
 			}
 			ASSERT (contigIds. size () == gffIds. size ());

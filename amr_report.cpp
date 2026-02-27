@@ -429,6 +429,7 @@ struct BlastAlignment final : Alignment
 		    replace (product,  '_', ' ');
 		    replace (classS,   '_', ' ');
 		    replace (subclass, '_', ' ');
+		    //
         if (isSusceptibleProt ())
 		      susceptible = findPtr (accession2susceptible, refAccession);
   	    if (isMutationProt ())
@@ -1676,7 +1677,7 @@ private:
 
     if (   origHsps. size () <= 1 
         && ! strongSusceptibleProt
-       )
+       )  // Otherwise too slow
       als = origAls;
     else
     {

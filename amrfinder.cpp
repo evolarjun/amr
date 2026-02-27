@@ -33,6 +33,7 @@
 * Dependencies: NCBI BLAST, HMMer, libcurl, gunzip (optional)
 *
 * Release changes:
+*   4.2.10  02/27/2026 PD-3272  point mutations are ignored in protein hits with internal stop codons (except the stop codon point mutations)
 *   4.2.9   02/24/2026 PD-3547  method FRAMESHIFT
 *   4.2.8   01/28/2026          refactoring of AmrMutation::frameshift
 *   4.2.7   01/15/2026 PD-5549  bug when there is an HMM hit with no BLAST hit
