@@ -6,7 +6,24 @@ runs:
     - if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y hmmer ncbi-blast+ git libcurl4-openssl-dev build-essential curl
+        sudo apt-get install -y hmmer git libcurl4-openssl-dev build-essential curl
+        BLAST_VERSION=2.17.0
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then
+          BLAST_ARCH="x64"
+        elif [ "$ARCH" = "aarch64" ]; then
+          BLAST_ARCH="aarch64"
+        else
+          echo "Unsupported architecture: $ARCH"
+          exit 1
+        fi
+        echo "Detected architecture: $ARCH, using blast arch: $BLAST_ARCH"
+        curl -L -O https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/${BLAST_VERSION}/ncbi-blast-${BLAST_VERSION}+-${BLAST_ARCH}-linux.tar.gz
+        tar -zxvf ncbi-blast-${BLAST_VERSION}+-${BLAST_ARCH}-linux.tar.gz
+        sudo cp -r ncbi-blast-${BLAST_VERSION}+/bin/* /usr/local/bin/
+        rm ncbi-blast-${BLAST_VERSION}+-${BLAST_ARCH}-linux.tar.gz
+        rm -rf ncbi-blast-${BLAST_VERSION}+
+        blastn -version
       shell: bash
     - if: runner.os == 'macOS'
       run: |
