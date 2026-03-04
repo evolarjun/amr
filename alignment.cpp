@@ -269,11 +269,15 @@ string SeqChange::getMutationStr () const
   ASSERT (al);
   if (! disr. empty ())
     return disr. genesymbol_raw ();
-  const string allele_ (allele. empty () 
-                          ? "DEL" 
-                          : allele == "*"
-                              ? terminatorWord
-                              : allele
+  const string allele_ (al->aProt
+                          ? allele. empty () 
+                            ? "del" 
+                            : allele == "*"
+                                ? terminatorWord
+                                : allele
+                          : allele. empty () 
+                            ? "DEL" 
+                            : allele
                        );
   return reference + to_string ((int) start_ref + 1) + allele_; 
 }

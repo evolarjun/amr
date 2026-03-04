@@ -33,6 +33,7 @@
 * Dependencies: NCBI BLAST, HMMer, libcurl, gunzip (optional)
 *
 * Release changes:
+*   4.2.11  03/04/2026 PD-5597  replace "DEL" by "del" in --mutation_all output for proteins
 *   4.2.10  02/27/2026 PD-3272  point mutations are ignored in protein hits with internal stop codons (except the stop codon point mutations)
 *   4.2.9   02/24/2026 PD-3547  method FRAMESHIFT
 *   4.2.8   01/28/2026          refactoring of AmrMutation::frameshift
