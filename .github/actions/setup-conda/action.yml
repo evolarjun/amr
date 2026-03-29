@@ -3,7 +3,7 @@ description: 'Sets up Micromamba env and installs ncbi-amrfinderplus'
 runs:
   using: "composite"
   steps:
-    - uses: mamba-org/setup-micromamba@v1
+    - uses: mamba-org/setup-micromamba@v2
       with:
         environment-name: amrfinder
         create-args: >-

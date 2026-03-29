@@ -24,7 +24,7 @@ jobs:
         detached: true
     - name: When was this run
       run: date
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup Conda and AMRFinderPlus
       uses: ./.github/actions/setup-conda
     - name: download latest AMRFinderPlus database
@@ -54,7 +54,7 @@ jobs:
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
       with:
         detached: true
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup Conda and AMRFinderPlus
       uses: ./.github/actions/setup-conda
     - name: download latest AMRFinderPlus database
