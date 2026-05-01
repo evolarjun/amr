@@ -214,7 +214,7 @@ struct ThisApplication final : ShellApplication
 Requirement: the database directory contains subdirectories named by database versions.\
 ", false, false, true, true)
     {
-    	addKey ("database", "Directory for all versions of AMRFinder databases", "$BASE/data", 'd', "DATABASE_DIR");
+    	addKey ("database", "Directory for all versions of AMRFinder databases.\nDefault: $CONDA_PREFIX/share/amrfinderplus/data (conda builds) or <software directory>/data", "", 'd', "DATABASE_DIR");
     	addKey ("blast_bin", "Directory for BLAST", "", '\0', "BLAST_DIR");
     	addKey ("hmmer_bin", "Directory for HMMer", "", '\0', "HMMER_DIR");
     	addFlag ("force_update", "Force updating the AMRFinder database");  // PD-3469
@@ -244,7 +244,7 @@ Requirement: the database directory contains subdirectories named by database ve
 
   void shellBody () const final
   {
-    const string mainDirOrig  = getArg ("database");
+    string mainDirOrig  = getArg ("database");
           string blast_bin    = getArg ("blast_bin");
           string hmmer_bin    = getArg ("hmmer_bin");
     const bool   force_update = getFlag ("force_update");
@@ -260,6 +260,37 @@ Requirement: the database directory contains subdirectories named by database ve
         
     
     const bool screen = ! isRedirected (cerr);
+    
+    // Compute default database directory when --database is not provided
+    if (mainDirOrig. empty ())
+    {
+      string defaultDb;
+      #ifdef CONDA_DB_DIR
+      // we're in condaland
+        if (const char* s = getenv ("CONDA_PREFIX")) {
+          defaultDb = string (s) + "/share/amrfinderplus/data";
+        } else if (const char* s = getenv ("PREFIX")) {
+          const Warning warning (stderr);
+          stderr << "This was compiled for running under bioconda, but $CONDA_PREFIX was not found" << '\n';
+          defaultDb = string (s) + "/share/amrfinderplus/data";
+          stderr << "Reverting to $PREFIX: " << colorizeDir (defaultDb, screen);
+        } else {
+          const Warning warning (stderr);
+          stderr << "This was compiled for running under bioconda, but $CONDA_PREFIX was not found" << '\n';
+          stderr << "Reverting to hard coded directory: " << colorizeDir (CONDA_DB_DIR, screen);
+          defaultDb = CONDA_DB_DIR;
+        }
+      #else
+      // not in condaland
+        defaultDb = execDir + "data";
+      #endif
+      if (const char* s = getenv ("AMRFINDER_DB")) {
+        string amrDb (s);
+        trimSuffix (amrDb, "/");
+        mainDirOrig = getDirName (amrDb);
+      } else
+        mainDirOrig = defaultDb;
+    }
     
     // FTP site files
     stderr << "Looking up the published databases at " << colorizeUrl (URL, screen) << '\n';    
