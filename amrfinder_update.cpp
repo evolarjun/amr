@@ -214,7 +214,7 @@ struct ThisApplication final : ShellApplication
 Requirement: the database directory contains subdirectories named by database versions.\
 ", false, false, true, true)
     {
-    	addKey ("database", "Directory for all versions of AMRFinder databases", "$BASE/data", 'd', "DATABASE_DIR");
+    	addKey ("database", "Directory for all versions of AMRFinder databases", "", 'd', "DATABASE_DIR");
     	addKey ("blast_bin", "Directory for BLAST", "", '\0', "BLAST_DIR");
     	addKey ("hmmer_bin", "Directory for HMMer", "", '\0', "HMMER_DIR");
     	addFlag ("force_update", "Force updating the AMRFinder database");  // PD-3469
@@ -244,7 +244,7 @@ Requirement: the database directory contains subdirectories named by database ve
 
   void shellBody () const final
   {
-    const string mainDirOrig  = getArg ("database");
+          string mainDirOrig  = getArg ("database");
           string blast_bin    = getArg ("blast_bin");
           string hmmer_bin    = getArg ("hmmer_bin");
     const bool   force_update = getFlag ("force_update");
@@ -260,6 +260,33 @@ Requirement: the database directory contains subdirectories named by database ve
         
     
     const bool screen = ! isRedirected (cerr);
+
+    // Compute default database directory if not provided
+    if (mainDirOrig. empty ())
+    {
+      #ifdef CONDA_DB_DIR
+      // Conda environment — mirror amrfinder.cpp logic
+        if (const char* s = getenv("CONDA_PREFIX"))
+          mainDirOrig = string (s) + "/share/amrfinderplus/data";
+        else if (const char* s = getenv("PREFIX"))
+        {
+          const Warning warning (stderr);
+          stderr << "This was compiled for running under bioconda, but $CONDA_PREFIX was not found" << '\n'
+                 << "Reverting to $PREFIX: " << colorizeDir (string (s) + "/share/amrfinderplus/data", screen);
+          mainDirOrig = string (s) + "/share/amrfinderplus/data";
+        }
+        else
+        {
+          const Warning warning (stderr);
+          stderr << "This was compiled for running under bioconda, but $CONDA_PREFIX was not found" << '\n'
+                 << "Reverting to hard coded directory: " << colorizeDir (CONDA_DB_DIR, screen);
+          mainDirOrig = CONDA_DB_DIR;
+        }
+      #else
+      // Non-Conda: default to execDir + "data"
+        mainDirOrig = execDir + "data";
+      #endif
+    }
     
     // FTP site files
     stderr << "Looking up the published databases at " << colorizeUrl (URL, screen) << '\n';    
